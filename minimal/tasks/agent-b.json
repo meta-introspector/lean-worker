@@ -1,0 +1,34 @@
+{
+  "agent_id": "agent-b",
+  "description": "Safety layer: security, lifecycle, coordination, integration",
+  "shared_salt": "twin-proof-wave-vi-xii-2026-09-17-mike",
+  "relay": "https://kant-zk-relay.jmikedupont2.workers.dev",
+  "room_id": "7ace57627265db88",
+  "tasks": [
+    {
+      "id": "agent-b-wave-ix",
+      "wave": "IX",
+      "msg_salt": "d51871db08fa769f1d4f3d1eb7388bf022f4294238d31fc0503e53a997fbca74",
+      "enc_key": "703a42dab74e4342c735ca95297bf5360626087303bf9301a4dc456273bd7282"
+    },
+    {
+      "id": "agent-b-wave-x",
+      "wave": "X",
+      "msg_salt": "dc163804b96655bb497134455da2d69408b525764fc0016883916c7d00c2a11a",
+      "enc_key": "863e8a97dec9beef689df321dfa7696c9a37179c81e12a253bcf7c8329f3d638"
+    },
+    {
+      "id": "agent-b-wave-xi",
+      "wave": "XI",
+      "msg_salt": "3637581d4ba9fa48da07a2f5b361151b86602f3cb3e47570ed308e2464800591",
+      "enc_key": "df6e6a234a6464375d27803002ecf2821c5cf43964349e4f41cd909bd2be929e"
+    },
+    {
+      "id": "agent-b-wave-xii",
+      "wave": "XII",
+      "msg_salt": "3e561038445444911ddf1049c9ae5fa1065c965d80f651cb924ad16cfad69cbc",
+      "enc_key": "4bf9bf634e9b28dfb5f08eab7d0347efd366d30510acf46158375844afc262cf"
+    }
+  ],
+  "instructions": "Agent Instructions for agent-b:\n\n1. Read ProofWorkSpec.md for the full proof spec\n2. Your waves: IX, X, XI, XII\n3. Implement proofs in existing files (no new files)\n4. Compile with: lean file.lean 2>&1\n5. When done, encrypt results and POST to:\n   POST https://kant-zk-relay.jmikedupont2.workers.dev/room/7ace57627265db88\n   Content-Type: application/json\n   Body: {\"encrypted\":\"<base64(ciphertext)>\",\"iv\":\"<hex 12 bytes>\",\"tag\":\"<hex 16 bytes>\",\"agent\":\"agent-b\",\"task\":\"<task_id>\",\"ts\":\"<iso8601>\"}\n\nEncryption (AES-256-GCM):\n  Algorithm: AES-256-GCM (from cryptography library)\n  Key: SHA256(\"{task_id}:twin-proof-wave-vi-xii-2026-09-17-mike\")\n  IV: 12 random bytes\n  Encrypt: ct_with_tag = AESGCM(key).encrypt(iv, plaintext.encode(), None)\n  Split: ciphertext = ct_with_tag[:-16], tag = ct_with_tag[-16:]\n  Send ciphertext base64-encoded, iv and tag as hex\n\nResult JSON (plaintext before encryption):\n  {\n    \"compiled\": true/false,\n    \"theorems_proved\": N,\n    \"sorrys_remaining\": N,\n    \"warnings\": 0,\n    \"files_changed\": [\"File1.lean\", ...],\n    \"theorems_added\": [\"theorem_name\", ...],\n    \"total_theorems\": N,\n    \"total_sorrys\": N,\n    \"log\": \"compiler output\"\n  }\n\nIf compilation fails, set \"compiled\": false and include \"error\" + \"log\".\nMax 3 attempts per wave.\n\nDecryption (for orchestrator):\n  key = SHA256(task_id + \":\" + shared_salt)\n  ct_with_tag = base64_decode(encrypted) + hex_decode(tag)\n  plaintext = AESGCM(key).decrypt(hex_decode(iv), ct_with_tag, None)\n"
+}

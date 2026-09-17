@@ -1,0 +1,24 @@
+{
+  "agent_id": "agent-b",
+  "wave": "XI",
+  "title": "Wave XI \u2014 Multi-Agent Coordination",
+  "scope": "Subagent delegation, result verification, multi-agent safety",
+  "topics": [
+    "Subagent capability inheritance (subagent \u2264 parent capabilities)",
+    "Subagent result verification (result matches declared type)",
+    "Timeout enforcement (subagent terminated after budget)",
+    "Result integrity (no tampering between subagent \u2192 parent)",
+    "Concurrency safety (no race conditions on shared state)"
+  ],
+  "estimated_theorems": 8,
+  "files_to_modify": [
+    "Twin.lean",
+    "CommandExecution.lean",
+    "ExecutionTrace.lean",
+    "ToolProvenance.lean",
+    "Agent.lean",
+    "CreditUsage.lean"
+  ],
+  "proof_principle": "Every proof proves what is already declared in the model. No new types, predicates, or invariants.",
+  "compilation_command": "lean file.lean 2>&1"
+}

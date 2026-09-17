@@ -1,0 +1,24 @@
+{
+  "agent_id": "agent-b",
+  "wave": "IX",
+  "title": "Wave IX \u2014 Security & Access Control",
+  "scope": "Permission boundaries: file access, environment isolation, network exposure",
+  "topics": [
+    "File access whitelist (only permitted paths)",
+    "Environment variable protection (cannot dump secrets)",
+    "Service exposure safety (only on designated paths)",
+    "Caddy config validation (proxy rules are correct)",
+    "Credential file protection (chmod 600, workspace-only)"
+  ],
+  "estimated_theorems": 10,
+  "files_to_modify": [
+    "Twin.lean",
+    "CommandExecution.lean",
+    "ExecutionTrace.lean",
+    "ToolProvenance.lean",
+    "Agent.lean",
+    "CreditUsage.lean"
+  ],
+  "proof_principle": "Every proof proves what is already declared in the model. No new types, predicates, or invariants.",
+  "compilation_command": "lean file.lean 2>&1"
+}

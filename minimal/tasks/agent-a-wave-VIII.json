@@ -1,0 +1,22 @@
+{
+  "agent_id": "agent-a",
+  "wave": "VIII",
+  "title": "Wave VIII \u2014 Process Execution Safety",
+  "scope": "Shell command execution: sandboxing, resource bounds, output verification",
+  "topics": [
+    "Command execution bounded (time, memory, output size)",
+    "Environment isolation (no access to sensitive env vars)",
+    "Return code handling (non-zero means failure, properly checked)",
+    "Stderr capture invariant (errors are always recorded)",
+    "Process lifecycle (spawn \u2192 monitor \u2192 collect \u2192 clean)"
+  ],
+  "estimated_theorems": 8,
+  "files_to_modify": [
+    "Twin.lean",
+    "CommandExecution.lean",
+    "ExecutionTrace.lean",
+    "ToolProvenance.lean"
+  ],
+  "proof_principle": "Every proof proves what is already declared in the model. No new types, predicates, or invariants.",
+  "compilation_command": "lean file.lean 2>&1"
+}

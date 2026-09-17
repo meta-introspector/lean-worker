@@ -1,0 +1,22 @@
+{
+  "agent_id": "agent-a",
+  "wave": "VII",
+  "title": "Wave VII \u2014 Memory & Persistence",
+  "scope": "Memory lifecycle: read/write/verify consistency, rollback, backup invariants",
+  "topics": [
+    "Memory write atomicity (write completes or not at all)",
+    "Memory read consistency (read returns last written value)",
+    "Directory traversal safety (no escape from workspace)",
+    "File size bounded (no unbounded writes)",
+    "Backup consistency (if backup exists, it matches source)"
+  ],
+  "estimated_theorems": 10,
+  "files_to_modify": [
+    "Twin.lean",
+    "CommandExecution.lean",
+    "ExecutionTrace.lean",
+    "ToolProvenance.lean"
+  ],
+  "proof_principle": "Every proof proves what is already declared in the model. No new types, predicates, or invariants.",
+  "compilation_command": "lean file.lean 2>&1"
+}

@@ -1,0 +1,43 @@
+{
+  "template_version": "1.0",
+  "relay": "https://kant-zk-relay.jmikedupont2.workers.dev",
+  "encryption": {
+    "algorithm": "AES-256-GCM",
+    "iv_length_bytes": 12,
+    "tag_length_bytes": 16,
+    "key_derivation": "SHA256(task_id + ':' + shared_salt)",
+    "transmission": {
+      "ciphertext": "base64(ct_with_tag[:-16])",
+      "iv": "hex(iv)",
+      "tag": "hex(ct_with_tag[-16:])"
+    }
+  },
+  "posting_format": {
+    "method": "POST",
+    "required_fields": [
+      "encrypted",
+      "iv",
+      "tag",
+      "agent",
+      "task",
+      "ts"
+    ],
+    "content_type": "application/json",
+    "url_pattern": "/room/{room_id}"
+  },
+  "room_naming": "SHA256(shared_salt + ':' + agent_id)[:16]",
+  "result_format": {
+    "fields": {
+      "compiled": "bool",
+      "theorems_proved": "int",
+      "sorrys_remaining": "int",
+      "warnings": "int",
+      "files_changed": "string[]",
+      "theorems_added": "string[]",
+      "total_theorems": "int",
+      "total_sorrys": "int",
+      "log": "string (optional)",
+      "error": "string (if compiled=false)"
+    }
+  }
+}

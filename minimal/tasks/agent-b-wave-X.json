@@ -1,0 +1,24 @@
+{
+  "agent_id": "agent-b",
+  "wave": "X",
+  "title": "Wave X \u2014 Lifecycle & State Transitions",
+  "scope": "Agent lifecycle: deploy, run, update, terminate \u2014 and their invariants",
+  "topics": [
+    "Deploy invariant (after deploy, service is reachable)",
+    "Update atomicity (new config replaces old atomically)",
+    "Service restart (if stopped, can be restarted)",
+    "Persistence invariant (state survives restart)",
+    "Graceful termination (pending work completed before exit)"
+  ],
+  "estimated_theorems": 8,
+  "files_to_modify": [
+    "Twin.lean",
+    "CommandExecution.lean",
+    "ExecutionTrace.lean",
+    "ToolProvenance.lean",
+    "Agent.lean",
+    "CreditUsage.lean"
+  ],
+  "proof_principle": "Every proof proves what is already declared in the model. No new types, predicates, or invariants.",
+  "compilation_command": "lean file.lean 2>&1"
+}

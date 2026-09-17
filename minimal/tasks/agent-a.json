@@ -1,0 +1,28 @@
+{
+  "agent_id": "agent-a",
+  "description": "Execution layer: network, memory, process safety",
+  "shared_salt": "twin-proof-wave-vi-xii-2026-09-17-mike",
+  "relay": "https://kant-zk-relay.jmikedupont2.workers.dev",
+  "room_id": "5ac79509b89fb8b2",
+  "tasks": [
+    {
+      "id": "agent-a-wave-vi",
+      "wave": "VI",
+      "msg_salt": "9e53a7b0b3d07514f28f9978dab8664fd6de366b30eee2e774bec929cbdccb17",
+      "enc_key": "cb1adfdc01d14b2f1ce5a26f9d4b2b2886a802fd0c114d48406dcef89c3f97b5"
+    },
+    {
+      "id": "agent-a-wave-vii",
+      "wave": "VII",
+      "msg_salt": "55dfaa452e385253882b0f45738fde8096733494d106a5271f9da688575cdb62",
+      "enc_key": "3b99b3d7dedbf5d1529057c99a995781553a3d344d49e6deaa23fe02e4c9dd03"
+    },
+    {
+      "id": "agent-a-wave-viii",
+      "wave": "VIII",
+      "msg_salt": "0a9cbd491b0c5dc51ec0e66d19b7cbcae67b86ec94ab420cce11104afd48e2c7",
+      "enc_key": "8d10b8dc7db6fed795584063a3177f309d9c450a9f65a9da438fff140a4dae30"
+    }
+  ],
+  "instructions": "Agent Instructions for agent-a:\n\n1. Read ProofWorkSpec.md for the full proof spec\n2. Your waves: VI, VII, VIII\n3. Implement proofs in existing files (no new files)\n4. Compile with: lean file.lean 2>&1\n5. When done, encrypt results and POST to:\n   POST https://kant-zk-relay.jmikedupont2.workers.dev/room/5ac79509b89fb8b2\n   Content-Type: application/json\n   Body: {\"encrypted\":\"<base64(ciphertext)>\",\"iv\":\"<hex 12 bytes>\",\"tag\":\"<hex 16 bytes>\",\"agent\":\"agent-a\",\"task\":\"<task_id>\",\"ts\":\"<iso8601>\"}\n\nEncryption (AES-256-GCM):\n  Algorithm: AES-256-GCM (from cryptography library)\n  Key: SHA256(\"{task_id}:twin-proof-wave-vi-xii-2026-09-17-mike\")\n  IV: 12 random bytes\n  Encrypt: ct_with_tag = AESGCM(key).encrypt(iv, plaintext.encode(), None)\n  Split: ciphertext = ct_with_tag[:-16], tag = ct_with_tag[-16:]\n  Send ciphertext base64-encoded, iv and tag as hex\n\nResult JSON (plaintext before encryption):\n  {\n    \"compiled\": true/false,\n    \"theorems_proved\": N,\n    \"sorrys_remaining\": N,\n    \"warnings\": 0,\n    \"files_changed\": [\"File1.lean\", ...],\n    \"theorems_added\": [\"theorem_name\", ...],\n    \"total_theorems\": N,\n    \"total_sorrys\": N,\n    \"log\": \"compiler output\"\n  }\n\nIf compilation fails, set \"compiled\": false and include \"error\" + \"log\".\nMax 3 attempts per wave.\n\nDecryption (for orchestrator):\n  key = SHA256(task_id + \":\" + shared_salt)\n  ct_with_tag = base64_decode(encrypted) + hex_decode(tag)\n  plaintext = AESGCM(key).decrypt(hex_decode(iv), ct_with_tag, None)\n"
+}

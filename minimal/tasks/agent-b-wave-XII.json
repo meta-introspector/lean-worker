@@ -1,0 +1,24 @@
+{
+  "agent_id": "agent-b",
+  "wave": "XII",
+  "title": "Wave XII \u2014 Full Integration & Verification Chain",
+  "scope": "Cross-wave theorems: wave invariants compose",
+  "topics": [
+    "Wave coherence (all waves simultaneously satisfied)",
+    "Invariant composition (if Wave I \u2227 II \u2227 III \u2192 safety)",
+    "Trace alignment (eBPF trace matches all declared invariants)",
+    "End-to-end verified execution (trace \u2192 analysis \u2192 Lean proof)",
+    "System health predicate (all invariants hold \u2192 healthy)"
+  ],
+  "estimated_theorems": 10,
+  "files_to_modify": [
+    "Twin.lean",
+    "CommandExecution.lean",
+    "ExecutionTrace.lean",
+    "ToolProvenance.lean",
+    "Agent.lean",
+    "CreditUsage.lean"
+  ],
+  "proof_principle": "Every proof proves what is already declared in the model. No new types, predicates, or invariants.",
+  "compilation_command": "lean file.lean 2>&1"
+}
