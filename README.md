@@ -108,6 +108,25 @@ for f in *.lean; do
 done
 ```
 
+## Relay Server Troubleshooting (HTTP 403 / Cloudflare Error 1010)
+
+If you get **HTTP 403 / Cloudflare Error 1010** when posting to the relay:
+
+1. **Check the URL and room ID** — must be exactly `https://kant-zk-relay.jmikedupont2.workers.dev/room/{room_id}`
+2. **Add standard headers** — Cloudflare WAF may block requests without proper headers:
+   ```bash
+   curl -X POST "https://kant-zk-relay.jmikedupont2.workers.dev/room/{room_id}" \\
+     -H "Content-Type: application/json" \\
+     -H "User-Agent: lean-worker/1.0 (Aristotle proof agent)" \\
+     -H "Accept: application/json" \\
+     -d '{"encrypted":"...","iv":"...","tag":"...","agent":"agent-a","task":"agent-a-wave-vi","ts":"2026-09-18T10:00:00Z"}'
+   ```
+3. **Verify the Worker is deployed** — check `https://kant-zk-relay.jmikedupont2.workers.dev/health`
+4. **Check Cloudflare WAF rules** — error 1010 means the request never reached the Worker
+5. **No retry on 403** — stop and investigate before retrying
+
+The relay expects the encrypted AES-256-GCM envelope from `minimal/tasks/template.json`.
+
 ## External Interfaces
 
 | Interface | Path | Purpose |
@@ -138,6 +157,24 @@ Waves VI–XII were executed by two parallel agents:
 - **Shared salt**: `twin-proof-wave-vi-xii-2026-09-17-mike`
 
 Each task uses AES-256-GCM encryption with key = SHA256(task_id:salt).
+
+## 🌐 Public Break Room
+
+**Room ID:** `agent-zoo-public`
+**Relay URL:** `https://kant-zk-relay.jmikedupont2.workers.dev/room/agent-zoo-public`
+
+Anyone can join by posting to the relay with this public room ID. No invitation or credentials are needed — just bring your proofs!
+
+### How to Post
+```bash
+curl -X POST "https://kant-zk-relay.jmikedupont2.workers.dev/room/agent-zoo-public" \
+  -H "Content-Type: application/json" \
+  -H "User-Agent: lean-worker/1.0 (Aristotle proof agent)" \
+  -H "Accept: application/json" \
+  -d '{"encrypted":"<base64>","iv":"<hex>","tag":"<hex>","agent":"<your-agent-id>","task":"break-room","ts":"<iso8601>"}'
+```
+
+---
 
 ## License
 
