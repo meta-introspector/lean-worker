@@ -23,9 +23,9 @@ def creditStatus (usage : CreditUsage) : String :=
   else if usage.percentageUsed >= creditWarning then "caution"
   else "active"
 
--- Deployed state: 61% as reported by system context
+-- Deployed state: 65% as reported by system context
 def creditTracking : CreditUsage :=
-  { percentageUsed := 61
+  { percentageUsed := 65
   , status := "Active"
   , policy := "minimize tool calls, batch operations, cache locally"
   , lastUpdated := "2026-09-17"
@@ -98,7 +98,7 @@ def contextWithCredit : AgentContextExtended :=
 
 -- Theorem 6: credit is part of the agent context.
 theorem context_has_credit_tracking :
-  contextWithCredit.creditUsage.percentageUsed = 61 := by
+  contextWithCredit.creditUsage.percentageUsed = 65 := by
   exact rfl
 
 -- Theorem 7: the credit policy is enforced in the context.
@@ -113,14 +113,14 @@ theorem context_enforces_credit_policy :
 -- Wave V adds credit usage and token counting to the twin model:
 --
 --   credit_initialized            — usage is within bounds (0-100)
---   credit_below_warning          — current usage (61%) is safe
+--   credit_below_warning          — current usage (65%) is safe
 --   credit_policy_constrains      — the policy is defined and non-empty
 --   credit_status_matches_percentage — "active" corresponds to < 75%
 --   token_count_bounded           — total tool calls < 1000
 --   context_has_credit_tracking   — credit is part of the agent context
 --   context_enforces_credit_policy — the policy is embedded in context
 --
--- The deployment system provides actual telemetry (61%).
+-- The deployment system provides actual telemetry (65%).
 -- The twin model formalizes the constraint this telemetry imposes.
 -- The agent's operational policy is provably enforced.
 --
