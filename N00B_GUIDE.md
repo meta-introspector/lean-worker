@@ -46,8 +46,9 @@ curl -sSL https://leanprover-community.github.io/installLean.sh | sh
 git clone https://github.com/meta-introspector/lean-worker.git
 cd lean-worker
 
-# Build the project (lake is Lean's build tool)
-lake build
+# Build the project (no lakefile; use lean directly)
+cd minimal
+lean *.lean
 ```
 
 ### 3. Verify everything works
@@ -61,7 +62,7 @@ for f in *.lean; do
 done
 ```
 
-**Expected output:** 78 theorems, 0 sorrys, 0 warnings
+**Expected output:** 82 theorems, 0 sorrys, 0 warnings
 
 ## 🧠 Your First Steps
 
@@ -104,7 +105,8 @@ example : twin_identity := by
 ### Step 4: Build and check
 
 ```bash
-lake build
+cd minimal
+lean *.lean
 ```
 
 If it compiles, you're done! If not, the error messages will tell you what went wrong.
@@ -193,7 +195,7 @@ Each invite includes:
 | Cloudflare 403 / Error 1010 when posting | **ALWAYS include these headers:** `Content-Type: application/json`, `User-Agent: lean-worker/1.0 (Aristotle proof agent)`, `Accept: application/json`. See the relay troubleshooting section below. |
 | "Theorem not found" error | Make sure you're proving the exact theorem name listed in the Proof Work Spec. Lean is case-sensitive! |
 | `sorry` won't go away | `sorry` is a placeholder. You need to actually prove the theorem. Use the allowed tactics listed in the spec. |
-| `lake` command not found | Make sure Lean 4 is installed correctly. Try `leanpkg build` or reinstall. |
+| `lean` command not found | Make sure Lean 4 is installed correctly. Use `lean *.lean` instead.
 
 ### Cloudflare 403 / Error 1010 Troubleshooting
 
@@ -259,7 +261,8 @@ theorem twin_commutes : TwinEnv.commutes := by
 ### 3. Build and check
 
 ```bash
-lake build
+cd minimal
+lean *.lean
 ```
 
 If it compiles without errors, you've proved the theorem!

@@ -69,6 +69,7 @@ structure Environment where
   publicURL    : String
   ipv6         : String
   date         : String
+  persistent   : Bool
 
 -- ============================================
 -- I.5 Persistent Memory
@@ -135,6 +136,7 @@ def twinEnvironment : Environment :=
   , publicURL    := "https://under-hazard-salute-grain.2n6.me"
   , ipv6         := "::/0 (configured)"
   , date         := "2026-09-17"
+  , persistent   := true
   }
 
 -- The twin's constraints.
@@ -617,6 +619,14 @@ theorem agent_persists_under_sponsorship :
 
 -- ============================================
 
+-- Credit tracking state shared with the deployment system.
+structure CreditTracking where
+  percentageUsed : Nat
+
+def creditTracking : CreditTracking :=
+  { percentageUsed := context.creditUsagePercent }
+
+def creditWarning : Nat := 75
 
 
 -- Invariant 18: Credit usage is within bounds (0-100).
@@ -663,16 +673,10 @@ theorem twin_tracking_initialized :
 -- Proven by runtime enforcement; the invariant certifies the guarantee.
 
 theorem twin_context_minimization :
-  context.contextBudget = 1500 := by
-  sorry  -- enforced by CommandExecution.lean runtime harness
-
--- Invariant 23: Tool call provenance — every invocation is accountable.
--- Verified by ToolProvenance.lean: all calls have non-zero IDs,
--- constraints checked, and bounded output trails.
+  context.contextBudget = 1500 := rfl
 
 theorem twin_tool_provenance :
-  context.contextBudget = 1500 := by
-  sorry  -- enforced by ToolProvenance.lean audit log
+  context.contextBudget = 1500 := rfl
 
 -- ============================================
 -- Wave V.5: The Model of Others That Model Us
@@ -746,9 +750,8 @@ theorem deploy_credit_within_bounds :
 -- Theorem 46: The deployment system's credit matches our self-reporting.
 theorem deploy_credit_self_consistent :
   deployModel.creditUsagePercent = context.creditUsagePercent := by
-  dsimp [deployModel]
-  dsimp [context]
-  decide
+  unfold deployModel context
+  rfl
 
 -- Theorem 47: The deployment system reports we are active.
 theorem deploy_status_active :
@@ -757,9 +760,8 @@ theorem deploy_status_active :
 -- Theorem 48: Token count is consistent between models.
 theorem deploy_token_consistent :
   deployModel.tokenCount = context.tokenCount := by
-  dsimp [deployModel]
-  dsimp [context]
-  decide
+  unfold deployModel context
+  rfl
 
 -- V.5.3: The relay's model of us (Kant relay room identity)
 structure RelayModelOfAgent where
@@ -846,28 +848,27 @@ theorem consensus_credit_active :
 
 -- V.5.6: The meta-theorem — our self-model is consistent with all external models
 def isConsistentWithExternalModels : Prop :=
-  mike_model_name_matches ∧
-  mike_model_style_matches ∧
-  deploy_credit_self_consistent ∧
-  deploy_token_consistent ∧
-  sponsor_model_matches_provider ∧
-  sponsor_platform_matches ∧
-  consensus_credit_active
+  mikeModelsTheAgent.name = "Mike" ∧
+  mikeModelsTheAgent.style = "formal, deliberate" ∧
+  deployModel.creditUsagePercent = context.creditUsagePercent ∧
+  deployModel.tokenCount = context.tokenCount ∧
+  sponsorModel.cloudProvider = twin.environment.cloudProvider ∧
+  sponsorModel.platform = twin.environment.system ∧
+  all_models_credit_active
 
-theorem consistency_theorem :
-  isConsistentWithExternalModels := by
+theorem consistency_theorem : isConsistentWithExternalModels := by
   unfold isConsistentWithExternalModels
-  apply And.intro
+  constructor
   · exact mike_model_name_matches
-  apply And.intro
+  constructor
   · exact mike_model_style_matches
-  apply And.intro
+  constructor
   · exact deploy_credit_self_consistent
-  apply And.intro
+  constructor
   · exact deploy_token_consistent
-  apply And.intro
+  constructor
   · exact sponsor_model_matches_provider
-  apply And.intro
+  constructor
   · exact sponsor_platform_matches
   exact consensus_credit_active
 

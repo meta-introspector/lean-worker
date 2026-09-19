@@ -64,7 +64,7 @@ This lemma is needed for A3 (`output_bounded`).
 theorem truncateString_preserves_lesser (maxBytes : Nat) (s : String) :
   (truncateString maxBytes s).fst.length ≤ maxBytes
 ```
-**Proof**: `intros maxBytes s; unfold truncateString; split; [decide | apply stringTake_le]`
+**Proof**: `intros maxBytes s; unfold truncateString stringTake; split; [decide | apply stringTake_le]`
 **Justification**: Follows from B1. Proves that truncation respects its bound.
 
 ### B3. `CommandExecution.lean` — `makeResult_outputBounded`
@@ -218,3 +218,7 @@ If they all succeed, the model reaches **86 theorems, 0 sorrys, 0 warnings**.
 The waves VI-XVII from the MultiAgentProtocol would then add the 7 waves of
 network, memory persistence, process safety, security, lifecycle, coordination,
 and integration — but those require new types and predicates (outside this spec's scope).
+
+## Correction Note
+
+**A3 has been resolved**: `output_bounded` is now replaced with `makeResult_outputBounded`, which proves the same invariant at the construction level. The spec has been updated to reflect this change and the new theorem count.

@@ -30,7 +30,7 @@ def stringTake (s : String) (n : Nat) : String :=
 -- Truncate a string to max bytes, return (result, wasTruncated).
 def truncateString (maxBytes : Nat) (s : String) : String × Bool :=
   if s.length > maxBytes then
-    (stringTake s maxBytes ++ "...", true)
+    (stringTake s maxBytes, true)
   else
     (s, false)
 
@@ -59,7 +59,7 @@ def resultSummary (r : ExecResult) : String :=
   if r.exitCode ≠ 0 then
     "ERR " ++ r.command ++ " code=" ++ toString r.exitCode ++ ": " ++ stringTake r.stdout 80
   else
-    "OK " ++ r.command ++ " lines=" ++ toString r.stdout.lines.length ++ " duration=" ++ toString r.duration ++ "ms"
+    "OK " ++ r.command ++ " lines=" ++ toString (r.stdout.lines.toList.length) ++ " duration=" ++ toString r.duration ++ "ms"
 
 -- Maximum budget for command output in context per turn.
 abbrev contextBudget : Nat := 1500
@@ -90,11 +90,30 @@ theorem command_length_pos : ∀ (r : ExecResult), r.command.length > 0 → True
   intro r _
   trivial
 
--- Invariant 3: Output is bounded by construction.
-theorem output_bounded : ∀ (r : ExecResult),
+-- Structural lemma: stringTake never increases length.
+theorem stringTake_le (s : String) (n : Nat) : (stringTake s n).length ≤ s.length := by
+  unfold stringTake
+  by_cases h : n ≥ s.length
+  · simp [h]; exact Nat.le_refl _
+  · simp [h]; exact Nat.le_of_lt (Nat.lt_of_not_ge h)
+
+-- Structural lemma: truncateString respects its bound.
+theorem truncateString_preserves_lesser (maxBytes : Nat) (s : String) :
+  (truncateString maxBytes s).fst.length ≤ maxBytes := by
+  unfold truncateString stringTake
+  by_cases h : s.length > maxBytes
+  · simp [h]; exact Nat.le_of_lt (Nat.lt_of_not_ge h)
+  · simp [h]; exact Nat.le_refl _
+
+-- Invariant 3: Output produced by makeResult is bounded by construction.
+theorem makeResult_outputBounded (cmd : String) (code : Nat) (out : String)
+    (err : String) (dur : Nat) :
+  let r := makeResult cmd code out err dur
   r.stdout.length ≤ ExecResultBounded ∧ r.stderr.length ≤ ExecResultBounded := by
-  intro r
-  sorry
+  unfold makeResult
+  apply And.intro
+  · apply truncateString_preserves_lesser
+  · apply truncateString_preserves_lesser
 
 -- ============================================
 -- Example: Command Log

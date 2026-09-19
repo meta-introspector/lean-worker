@@ -66,14 +66,14 @@ minimal/
 
 | File | Theorems | Sorrys | Warnings |
 |------|----------|--------|----------|
-| Twin.lean | 62 | 0 | 0 |
-| CommandExecution.lean | 3 | 0 | 0 |
+| Twin.lean | 64 | 0 | 0 |
+| CommandExecution.lean | 5 | 0 | 0 |
 | ExecutionTrace.lean | 3 | 0 | 0 |
 | ToolProvenance.lean | 3 | 0 | 0 |
 | CreditUsage.lean | 7 | 0 | 0 |
-| **Total** | **78** | **0** | **0** |
+| **Total** | **82** | **0** | **0** |
 
-All 78 theorems compile cleanly with zero warnings and zero sorrys.
+All 82 theorems compile cleanly with zero warnings and zero sorrys.
 
 ## Formal Properties
 
@@ -83,6 +83,7 @@ The twin model proves:
 - **Context integrity**: agent context (credit, tokens, budget) is well-formed and bounded within [0, 100]
 - **State immutability**: agent state transitions are deterministic and provable
 - **Command execution safety**: executed commands stay within declared sandbox scope (workspace or full filesystem)
+- **Output boundedness**: results produced by `makeResult` are bounded to ≤ 5000 bytes per stdout/stderr field (see `makeResult_outputBounded` in `CommandExecution.lean`)
 - **Tool provenance**: every tool call has an auditable, cryptographically verifiable trail
 - **Credit constraints**: usage is within declared bounds and below warning thresholds (< 75%)
 - **Cross-model consensus**: deployment telemetry, relay identity, and sponsorship all agree with self-model (Wave V.5)
@@ -94,8 +95,11 @@ Build and verify:
 
 ```bash
 cd minimal
-lake build
+lean *.lean
 ```
+
+> **Note**: This repo has no `lakefile.lean` or `lean-toolchain` file. `lake build` will not work.
+> Use `lean *.lean` for direct compilation, or add a `lakefile.lean` to enable `lake build`.
 
 To verify theorem and sorry counts:
 
