@@ -1,0 +1,101 @@
+{
+  "agent_id": "agent-c",
+  "role": "plugin-contexts",
+  "waves": ["XIII", "XIV", "XV"],
+  "description": "Publish plugin interface contexts with AOK theorems for all 45 ZOS plugins",
+  "tasks": [
+    {
+      "wave": "XIII",
+      "task_id": "agent-c-wave-XIII",
+      "title": "Generate AOK contexts for all ZOS plugins",
+      "description": "Create Lean4 PluginInterface structures and AOK (Arguments of Knowledge) theorems for each of the 45 registered ZOS plugins. Each context proves: name correctness, capability non-emptiness, command non-emptiness, core capability knowledge, version consistency, and interface completeness.",
+      "files_created": [
+        "activity_profile.lean",
+        "aristotle_manager.lean",
+        "cid_index_lean.lean",
+        "dir_to_shmem.lean",
+        "eco_research.lean",
+        "emacs_search.lean",
+        "erdfa_publish.lean",
+        "forge_plugin_tantivy.lean",
+        "forgecode.lean",
+        "forgecode_extras.lean",
+        "git_tools.lean",
+        "harbor.lean",
+        "hive_driver.lean",
+        "index_to_shmem.lean",
+        "ipld_car_shmem_client.lean",
+        "ipld_car_shmem_server.lean",
+        "lean4_block_server.lean",
+        "lean4_cbor_bridge.lean",
+        "lean4_repl.lean",
+        "lean4_twin.lean",
+        "letta_ipld_memory.lean",
+        "monster_hecke.lean",
+        "monster_voa.lean",
+        "observer_qa.lean",
+        "omnisearch.lean",
+        "omnisearch_config.lean",
+        "parquet_index.lean",
+        "proof_robot.lean",
+        "repo_headers.lean",
+        "shard_tools.lean",
+        "shmem_dedup.lean",
+        "shmem_optimize.lean",
+        "shmem_warm.lean",
+        "spec_to_proof.lean",
+        "spool.lean",
+        "spool_source.lean",
+        "tantivy_indexer.lean",
+        "task_manager.lean",
+        "test_tag_42.lean",
+        "tokenizer.lean",
+        "zombie_driver.lean",
+        "zos_a11y_gui.lean",
+        "zos_github_manager.lean",
+        "zos_noc_manager.lean",
+        "zos_plugin_generators.lean"
+      ],
+      "theorems_per_plugin": 6,
+      "total_theorems": 270,
+      "dependencies": ["RequestProject.Twin", "RequestProject.ToolProvenance"]
+    },
+    {
+      "wave": "XIV",
+      "task_id": "agent-c-wave-XIV",
+      "title": "Verify public example: shmem_dedup",
+      "description": "Demonstrate complete verification cycle for shmem-dedup plugin context. This plugin connects the FFI dedup-search plugin with the user CLI shmem-dedup, providing global line/chunk deduplication with Tantivy full-text search.",
+      "example_plugin": "shmem_dedup",
+      "verification_steps": [
+        "Verify shmem_dedup.lean compiles with zero warnings",
+        "Verify all 6 AOK theorems prove (no sorrys)",
+        "Verify binary exists at /home/mdupont/dasl/ipld-car-ipc-shmem-linux/target/release/shmem-dedup",
+        "Verify manifest.json exists at /home/mdupont/zos-server/plugins/shmem-dedup/manifest.json",
+        "Verify registry entry in zos-plugin-registry.json"
+      ],
+      "aok_theorems": [
+        "shmem_dedup_name_correct",
+        "shmem_dedup_capabilities_nonempty",
+        "shmem_dedup_commands_nonempty",
+        "shmem_dedup_has_core_capability",
+        "shmem_dedup_version_consistent",
+        "shmem_dedup_complete_interface"
+      ],
+      "plugin_type": "tool",
+      "integrations": ["forgecode", "dotagents", "dedup-search"]
+    },
+    {
+      "wave": "XV",
+      "task_id": "agent-c-wave-XV",
+      "title": "Document plugin context onboarding for new agents",
+      "description": "Create onboarding documentation showing how to add new plugin contexts, verify AOK theorems, and publish to the Agent Zoo break room.",
+      "deliverables": [
+        "PLUGIN_CONTEXT_ONBOARDING.md in minimal/",
+        "Example PR workflow for new plugin contexts",
+        "Relay posting instructions for agent-c results"
+      ]
+    }
+  ],
+  "shared_salt": "twin-proof-plugin-contexts-2026-09-20",
+  "relay_room": "agent-zoo-public"
+}
