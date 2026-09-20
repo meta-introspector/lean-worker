@@ -142,6 +142,73 @@ The zos-server plugin registry (`zos-plugin-registry.json`) provides the single 
 - ✅ Registry contains all 45 plugins
 - ✅ All manifests validated
 
+## Build Strategy: Without Mathlib First
+
+The lean-worker project follows a staged build strategy to keep the formalization bootstrappable:
+
+### Step 1: Build without mathlib
+
+The plugin contexts are designed to compile without mathlib dependencies. To build the minimal context library:
+
+```bash
+cd minimal
+cp lakefile.toml lakefile.toml.bak
+# Temporarily remove the [[require]] mathlib block
+# Build only Minimal.PluginContexts
+lake build Minimal.PluginContexts
+```
+
+The context files define self-contained structures and theorems:
+
+```lean
+structure PluginInterface where
+  name        : String
+  version     : String
+  description : String
+  capabilities : List String
+  commands    : List String
+```
+
+Each AOK theorem uses only core Lean4 constructs (`rfl`, `norm_num`, `constructor`, `exact`) and does not require mathlib.
+
+### Step 2: Configure binary cache
+
+Once the minimal build succeeds, configure the binary cache so the context oleans can be reused:
+
+```bash
+lake build Minimal.PluginContexts
+# Oleans are cached in .lake/build/lib/lean/
+```
+
+### Step 3: Reuse shared mathlib
+
+After the minimal build is cached, restore the full lakefile.toml and build with mathlib:
+
+```bash
+cp lakefile.toml.bak lakefile.toml
+lake build
+```
+
+This reuses the shared mathlib oleans from the cache while compiling the full twin model.
+
+## First Tool Formalization: Aristotle CLI
+
+As part of the lean-worker formalization effort, the **first tool being formally rewritten and abstracted in Lean4 is the Aristotle CLI**.
+
+This effort involves:
+- Rewriting the aristotle-manager CLI (Rust) in Lean4
+- Abstracting its core operations (poll, download, build, split, merge, index) into formal Lean4 structures
+- Creating AOK contexts for the Aristotle CLI similar to the plugin contexts
+- Proving that the Lean4 implementation correctly abstracts and validates the original CLI behavior
+
+The Aristotle CLI formalization will follow the same pattern as the plugin contexts:
+1. Define a Lean4 interface structure for Aristotle operations
+2. Generate AOK theorems proving correctness of the abstraction
+3. Integrate with the existing RequestProject.Twin and ToolProvenance models
+4. Publish results to the Agent Zoo break room
+
+This work is scheduled for future waves (XVI+) after the plugin context onboarding is complete.
+
 ## License
 
 AGPL3 zkhackers gotta eat
