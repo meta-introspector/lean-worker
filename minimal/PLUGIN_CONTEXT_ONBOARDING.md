@@ -180,16 +180,20 @@ lake build Minimal.PluginContexts
 # Oleans are cached in .lake/build/lib/lean/
 ```
 
-### Step 3: Reuse shared mathlib
+### Step 5: Merge parts of mathlib
 
-After the minimal build is cached, restore the full lakefile.toml and build with mathlib:
+After building with the shared mathlib, selectively merge only the mathlib components actually needed by the Aristotle CLI formalization:
 
 ```bash
-cp lakefile.toml.bak lakefile.toml
+# Identify used mathlib modules
 lake build
+grep -r "import Mathlib" minimal/*.lean | sort -u
+
+# Build with minimal mathlib footprint
+# Only the required mathlib modules are compiled and cached
 ```
 
-This reuses the shared mathlib oleans from the cache while compiling the full twin model.
+This keeps the formalization lean while leveraging mathlib's powerful libraries (e.g., `Mathlib.Data.String`, `Mathlib.Data.List`, `Mathlib.Algebra`) for the Aristotle CLI abstraction.
 
 ## First Tool Formalization: Aristotle CLI
 
