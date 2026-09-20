@@ -180,6 +180,12 @@ lake build Minimal.PluginContexts
 # Oleans are cached in .lake/build/lib/lean/
 ```
 
+### Step 4: Split mathlib
+
+The shared mathlib can be split into dependency-ordered modules for efficient caching:
+
+
+
 ### Step 5: Merge parts of mathlib
 
 After building with the shared mathlib, selectively merge only the mathlib components actually needed by the Aristotle CLI formalization:
