@@ -3,6 +3,13 @@
   "role": "plugin-contexts",
   "waves": ["XIII", "XIV", "XV"],
   "description": "Publish plugin interface contexts with AOK theorems for all 45 ZOS plugins",
+  "staged_build_strategy": {
+    "step_1": "Build without mathlib - compile Minimal.PluginContexts without mathlib dependency",
+    "step_2": "Configure binary cache - reuse cached oleans from .lake/build/lib/lean/",
+    "step_3": "Reuse shared mathlib - restore full lakefile.toml and build with mathlib",
+    "step_4": "Split mathlib - split mathlib into dependency-ordered modules for caching",
+    "step_5": "Merge parts of mathlib - selectively merge only needed mathlib components for Aristotle CLI"
+  },
   "tasks": [
     {
       "wave": "XIII",
