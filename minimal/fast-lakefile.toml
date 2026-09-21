@@ -1,0 +1,75 @@
+name = "RequestProject"
+version = "0.1.0"
+defaultTargets = ["RequestProject"]
+
+# NO [[require]] = no mathlib, no network, fast for CI
+
+[[lean_lib]]
+name = "RequestProject"
+dir = "RequestProject"
+roots = ["Agent", "APICapabilities", "CommandExecution", "CreditUsage", "ExecutionTrace", "ToolProvenance", "Twin", "Main", "ProxyReport"]
+
+[[lean_lib]]
+name = "RequestProject.Proxy"
+roots = ["Concrete", "Core", "Dashboard", "Example", "Export", "Interop", "Monitor"]
+
+[[lean_lib]]
+name = "RequestProject.Protocol"
+roots = ["Client", "Core", "Example", "Server", "Soundness"]
+
+[[lean_lib]]
+name = "RequestProject.PluginContexts"
+deps = ["RequestProject"]
+roots = [
+  "activity_profile", "aristotle_manager", "aristotle_tools", "cid_index_lean",
+  "dir_to_shmem", "eco_research", "emacs_search", "erdfa_publish", "forgecode",
+  "forgecode_extras", "forge_plugin_tantivy", "git_tools", "harbor", "hive_driver",
+  "index_to_shmem", "ipld_car_shmem_client", "ipld_car_shmem_server",
+  "lean4_block_server", "lean4_cbor_bridge", "lean4_repl", "lean4_twin",
+  "letta_ipld_memory", "monster_hecke", "monster_voa", "observer_qa",
+  "omnisearch", "omnisearch_config", "parquet_index", "proof_robot",
+  "repo_headers", "shard_tools", "shmem_dedup", "shmem_optimize", "shmem_warm",
+  "spec_to_proof", "spool", "spool_source", "tantivy_indexer", "task_manager",
+  "test_tag_42", "tokenizer", "zombie_driver", "zos_a11y_gui", "zos_github_manager",
+  "zos_noc_manager", "zos_plugin_generators"
+]
+
+[[lean_exe]]
+name = "proxy_report"
+root = "ProxyReport"
+
+# Add gokujo to the project
+depends = ["Gokujo"]
+
+[[lean_lib]]
+name = "Gokujo"
+roots = ["Gokujo.lean", "GokujoMain.lean"]
+
+# Add execution scripts for agent-c and testing
+depends = ["ExecScript"]
+
+[[lean_exe]]
+name = "agent-c"
+root = "AgentC/main"
+
+# Add test suite scripts
+depends = ["TestSuite"]
+
+[[lean_exe]]
+name = "test-suite"
+root = "tests/run"
+
+# Cache configuration for fast builds
+cache = { enabled = true, directory = ".lake/cache" }
+
+# Override leanc options for no-network builds
+# (Lean's lakefile doesn't expose this, but we rely on caches)
+
+# Explicitly disable mathlib in lake config
+# No [[require]] = no mathlib
+
+# Fast build settings (subset of optimizations)
+options = {
+  transparency = true
+  logging = false
+}
