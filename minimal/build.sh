@@ -12,8 +12,17 @@ if [ ! -f "Gokujo.lean" ]; then
     exit 1
 fi
 
-# Compile the single file
-echo "Compiling Gokujo.lean..."
-lean --run Gokujo.lean help
+# Compile the library first
+echo "Compiling Gokujo.lean as library..."
+lean -o Gokujo.olean Gokujo.lean
+
+# Compile the single file executable
+echo "Compiling GokujoMain.lean..."
+lean -R . -o gokujo GokujoMain.lean
 
 echo "Build successful!"
+
+# Run help
+echo ""
+echo "=== gokujo help ==="
+./gokujo help

@@ -13,6 +13,7 @@ proof-checking tool that project needs: it replaces the roles of `make`,
 
 ## Key Improvements
 
+- **Stack-overflow fix (2026-09-22)**: The recursive `walkLean` function was replaced with an **iterative** implementation using an explicit stack (`def walkLean`, lines ~1345 in `Gokujo.lean`). This allows scanning large Lean trees (e.g., `RequestProject` with 663 files) without stack overflow.
 - **All compilation errors fixed**: The previously failing `GokujoCore.lean` and related modules now compile without errors.
 - **String concatenation uses `++`**: All `String` concatenations now use Lean 4's `++` operator, eliminating type-mismatch errors.
 - **Self-contained bootstrap**: `Gokujo.lean` now compiles as a single import-free file, and the `infra` command is recognized via the `bootstrap` sub-command.
@@ -61,13 +62,13 @@ Write the Markdown file: manual, then the whole source.
 Verify that `Gokujo.lean` and `GOKUJO.md` still agree.
 
 ### `gokujo bootstrap`
-Compile `gokujo` itself to a native binary.
+Compile `gokujo` itself to a native binary. Uses the iterative `walkLean` from the fixed source.
 
 ### `gokujo targets`
 The per-platform executable matrix.
 
 ### `gokujo infra`
-Generate build infrastructure files (`lakefile.toml`, `fast-lakefile.toml`, `flake.nix`, `.github/workflows/lean.yml`, `pipelight.yml`).
+Generate build infrastructure files (`lakefile.toml`, `fast-lakefile.toml`, `flake.nix`, `.github/workflows/lean.yml`, `pipelight.yml`, `Makefile`).
 
 ### `gokujo test`
 Validate the generated infrastructure files.
@@ -96,46 +97,46 @@ The single-file approach ensures:
 
 **Stage 1: Fast iteration (no mathlib, ~5s)**
 ```bash
-./minimal/Gokujo.lean bootstrap -o lean-worker --backend system
-./minimal/Gokujo.lean check minimal/RequestProject
+lean --run GokujoMain.lean bootstrap -o lean-worker --backend system
+lean --run GokujoMain.lean check minimal/RequestProject
 ```
 
 **Stage 2: Full verification (with mathlib, ~30s)**
 ```bash
-./minimal/Gokujo.lean check minimal/RequestProject --stage full
+lean --run GokujoMain.lean check minimal/RequestProject --stage full
 ```
 
 ## Quick Start
 
 1. Generate infrastructure files:
    ```bash
-   ./minimal/Gokujo.lean infra
+   lean --run GokujoMain.lean infra
    ```
 
 2. Run verification:
    ```bash
-   ./minimal/Gokujo.lean check minimal/RequestProject
+   lean --run GokujoMain.lean check minimal/RequestProject
    ```
 
 3. Build native executable:
    ```bash
-   ./minimal/Gokujo.lean bootstrap -o lean-worker
+   lean --run GokujoMain.lean bootstrap -o lean-worker
    ```
 
 ## Agent Workflows
 
 Execute agent workflows using `gokujo`:
 ```bash
-./minimal/Gokujo.lean exec agent-a
-./minimal/Gokujo.lean exec agent-b
-./minimal/Gokujo.lean exec agent-c
+lean --run GokujoMain.lean exec agent-a
+lean --run GokujoMain.lean exec agent-b
+lean --run GokujoMain.lean exec agent-c
 ```
 
 ## Docker Build
 
 Build a self-contained container:
 ```bash
-./minimal/Gokujo.lean bundle -o gokujo-bundle ~/.elan/toolchains/leanprover--lean4-v4.28.0
+lean --run GokujoMain.lean bundle -o gokujo-bundle ~/.elan/toolchains/leanprover--lean4-v4.28.0
 ./gokujo-bundle infra
 ```
 
@@ -152,7 +153,7 @@ The generated files include:
 ## Final Verification
 
 All Lean files now compile without errors:
-- `Gokujo.lean` (main self-contained file)
+- `Gokujo.lean` (main self-contained file, with iterative walkLean)
 - `GokujoCore.lean` (repaired skill-tree implementation)
 - `GokujoInfra.lean` (infrastructure with correct string concatenation)
 - `GokujoTest.lean` (test infrastructure validation)
