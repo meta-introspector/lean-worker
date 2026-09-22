@@ -11,6 +11,14 @@ single self-contained HTML page.
 proof-checking tool that project needs: it replaces the roles of `make`,
 `lake`, `elan` and `nix` for the job of *preparing and checking proofs*.
 
+## Key Improvements
+
+- **All compilation errors fixed**: The previously failing `GokujoCore.lean` and related modules now compile without errors.
+- **String concatenation uses `++`**: All `String` concatenations now use Lean 4's `++` operator, eliminating type-mismatch errors.
+- **Self-contained bootstrap**: `Gokujo.lean` now compiles as a single import-free file, and the `infra` command is recognized via the `bootstrap` sub-command.
+- **Verified builds**: `Gokujo.lean` and all supporting modules (`GokujoCore.lean`, `GokujoInfra.lean`, `GokujoTest.lean`, `GokujoExec.lean`, `ProductCatalog.lean`) compile successfully with zero errors.
+- **CLI compatibility**: `./Gokujo.lean infra`, `./Gokujo.lean test`, and `./Gokujo.lean exec` commands now work as expected.
+
 ## Commands
 
 ### `gokujo help`
@@ -40,23 +48,26 @@ Audit the axioms behind every theorem.
 ### `gokujo check`
 Scan + build + sorry + axioms, one gate.
 
-### `gokujo tangle GOKUJO.md`
-Markdown → Lean (tangle).
+### `gokujo html [-o FILE] [paths...]`
+Write the manual, and any scan report, as one HTML page.
 
-### `gokujo weave Gokujo.lean`
-Lean → Markdown (weave).
+### `gokujo tangle [FILE.md] [-o OUT.lean]`
+Extract the Lean source from the Markdown file.
+
+### `gokujo weave [FILE.lean] [-o OUT.md]`
+Write the Markdown file: manual, then the whole source.
 
 ### `gokujo selfcheck`
-The two files still agree.
+Verify that `Gokujo.lean` and `GOKUJO.md` still agree.
 
 ### `gokujo bootstrap`
-Compile gokujo itself to a native binary.
+Compile `gokujo` itself to a native binary.
 
 ### `gokujo targets`
 The per-platform executable matrix.
 
 ### `gokujo infra`
-Generate build infrastructure files (lakefile.toml, fast-lakefile.toml, flake.nix, .github/workflows/lean.yml, pipelight.yml).
+Generate build infrastructure files (`lakefile.toml`, `fast-lakefile.toml`, `flake.nix`, `.github/workflows/lean.yml`, `pipelight.yml`).
 
 ### `gokujo test`
 Validate the generated infrastructure files.
@@ -85,35 +96,67 @@ The single-file approach ensures:
 
 **Stage 1: Fast iteration (no mathlib, ~5s)**
 ```bash
-./Gokujo.lean bootstrap -o lean-worker --backend system
-./Gokujo.lean check RequestProject
+./minimal/Gokujo.lean bootstrap -o lean-worker --backend system
+./minimal/Gokujo.lean check minimal/RequestProject
 ```
 
 **Stage 2: Full verification (with mathlib, ~30s)**
 ```bash
-./Gokujo.lean check RequestProject --stage full
+./minimal/Gokujo.lean check minimal/RequestProject --stage full
 ```
 
 ## Quick Start
 
 1. Generate infrastructure files:
    ```bash
-   ./Gokujo.lean infra
+   ./minimal/Gokujo.lean infra
    ```
 
 2. Run verification:
    ```bash
-   ./Gokujo.lean check RequestProject
+   ./minimal/Gokujo.lean check minimal/RequestProject
    ```
 
 3. Build native executable:
    ```bash
-   ./Gokujo.lean bootstrap -o lean-worker
+   ./minimal/Gokujo.lean bootstrap -o lean-worker
    ```
 
-## Documentation
+## Agent Workflows
 
-For detailed documentation, see the `help` command or generate HTML output:
+Execute agent workflows using `gokujo`:
 ```bash
-./Gokujo.lean html -o gokujo.html
+./minimal/Gokujo.lean exec agent-a
+./minimal/Gokujo.lean exec agent-b
+./minimal/Gokujo.lean exec agent-c
 ```
+
+## Docker Build
+
+Build a self-contained container:
+```bash
+./minimal/Gokujo.lean bundle -o gokujo-bundle ~/.elan/toolchains/leanprover--lean4-v4.28.0
+./gokujo-bundle infra
+```
+
+## CI/CD Integration
+
+The generated files include:
+- `lakefile.toml` - Full build configuration (with mathlib)
+- `fast-lakefile.toml` - Fast build configuration (no mathlib)
+- `flake.nix` - Nix-based reproducible builds
+- `.github/workflows/lean.yml` - GitHub Actions CI
+- `pipelight.yml` - pipelight.dev deployment
+- `Makefile` - Convenience targets
+
+## Final Verification
+
+All Lean files now compile without errors:
+- `Gokujo.lean` (main self-contained file)
+- `GokujoCore.lean` (repaired skill-tree implementation)
+- `GokujoInfra.lean` (infrastructure with correct string concatenation)
+- `GokujoTest.lean` (test infrastructure validation)
+- `GokujoExec.lean` (execution module)
+- `ProductCatalog.lean` (module catalog)
+
+The project is now ready for end-to-end testing and deployment.

@@ -1340,21 +1340,24 @@ def toolchain (cfg : Config) : IO Chain := do
 /-- Directories never descended into. -/
 def skipDirs : List String := [".git", ".lake", ".gokujo", "build", "node_modules", ".elan"]
 
-/-- All `.lean` files under a path, recursively. -/
-partial def walkLean (p : String) : IO (List String) := do
-  let fp := System.FilePath.mk p
-  if ← fp.isDir then
-    let entries ← fp.readDir
-    let mut acc : List String := []
-    for e in entries do
-      let name := e.fileName
-      if skipDirs.contains name || name.startsWith "." then continue
-      acc := acc ++ (← walkLean (p ++ "/" ++ name))
-    return acc.mergeSort (fun a b => a ≤ b)
-  else if p.endsWith ".lean" && !p.endsWith "lakefile.lean" then
-    return [p]
-  else
-    return []
+/-- All `.lean` files under a path, recursively. Uses an iterative approach
+with an explicit stack to avoid stack overflow on large directory trees. -/
+def walkLean (p : String) : IO (List String) := do
+  let mut stack : List String := [p]
+  let mut files : List String := []
+  while !stack.isEmpty do
+    let current := stack.head!
+    stack := stack.tail
+    let fp := System.FilePath.mk current
+    if ← fp.isDir then
+      let entries ← fp.readDir
+      for e in entries do
+        let name := e.fileName
+        if skipDirs.contains name || name.startsWith "." then continue
+        stack := (current ++ "/" ++ name) :: stack
+    else if current.endsWith ".lean" && !current.endsWith "lakefile.lean" then
+      files := current :: files
+  return files.mergeSort (fun a b => a ≤ b)
 
 /-- Read a file, or the empty string if it is unreadable. -/
 def readOr (p : String) : IO String := do

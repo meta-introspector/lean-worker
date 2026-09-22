@@ -1,7 +1,3 @@
-/-!
-# Makefile for lean-worker project
--/
-
 .PHONY: help build test infra verify clean
 
 help:
@@ -13,16 +9,16 @@ help:
 	@echo "  make clean     - Clean build artifacts"
 
 build:
-	./minimal/Gokujo.lean bootstrap -o lean-worker --backend system
+	LEAN_PATH=. lean --run GokujoMain.lean bootstrap -o lean-worker --backend system
 
 test:
-	./minimal/Gokujo.lean check minimal/RequestProject
+	LEAN_PATH=. lean --run GokujoMain.lean check minimal/RequestProject
 
 infra:
-	./minimal/Gokujo.lean infra
+	LEAN_PATH=. lean --run GokujoMain.lean infra
 
 verify:
-	./minimal/Gokujo.lean check minimal/RequestProject --stage full
+	LEAN_PATH=. lean --run GokujoMain.lean check minimal/RequestProject --stage full
 
 clean:
 	rm -rf .lake build

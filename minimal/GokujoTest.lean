@@ -1,5 +1,4 @@
-/-! GokujoTest — Test infrastructure validation
--/
+/-! GokujoTest — Test infrastructure validation -/
 
 namespace TestInfra
 
@@ -9,8 +8,8 @@ def validateInfra (root : String) : IO Bool := do
   let mut allGood : Bool := true
   for f in files do
     let path := root ++ "/" ++ f
-    let exists ← (System.FilePath.mk path).pathExists
-    if exists then
+    let pexists ← System.FilePath.pathExists (System.FilePath.mk path)
+    if pexists then
       IO.println ("  ✅ " ++ f)
     else
       IO.println ("  ❌ " ++ f ++ " missing")
