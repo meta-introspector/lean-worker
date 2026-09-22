@@ -14,7 +14,7 @@
   take it as an explicit hypothesis.  Everything checked here by computation is
   checked on the concrete encoding.
 -/
-import RequestProject.Proxy.Dashboard
+import Proxy.Dashboard
 
 namespace Proxy
 
