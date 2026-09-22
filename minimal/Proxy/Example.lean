@@ -11,7 +11,7 @@
   verifies, that the dashboard shows exactly one row per call, and that a single
   edited byte in the journal makes the dashboard go dark.
 -/
-import RequestProject.Proxy.Concrete
+import Proxy.Concrete
 
 set_option maxRecDepth 100000
 set_option maxHeartbeats 2000000

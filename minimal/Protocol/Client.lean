@@ -15,7 +15,7 @@
   Every one of those checks is load-bearing; the theorems below show that each
   failure mode is rejected.
 -/
-import RequestProject.Protocol.Core
+import Protocol.Core
 
 namespace P2P
 

@@ -1,0 +1,78 @@
+# pipelight.dev build manifest for lean-worker
+# See https://pipelight.dev/docs for full reference
+
+version: "1.0"
+project: lean-worker
+
+# Two-stage build
+stages:
+  # Stage 1: Fast iteration without mathlib
+  stage1-fast:
+    name: "Stage 1 - Fast Lean check (no mathlib)"
+    cache: true
+    commands:
+      - nix profile install nixpkgs#lean4
+      - nix profile install nixpkgs#leanc
+      - nix profile install nixpkgs#lake
+      - cd minimal
+      - cp lakefile.toml lakefile.toml.bak
+      - |
+        cat > lakefile.toml << 'EOF'
+        name = "RequestProject"
+        version = "0.1.0"
+        defaultTargets = ["RequestProject"]
+
+        [[lean_lib]]
+        name = "RequestProject"
+        dir = "RequestProject"
+        roots = ["Agent", "APICapabilities", "CommandExecution", "CreditUsage", "ExecutionTrace", "ToolProvenance", "Twin", "Main", "ProxyReport"]
+
+        [[lean_lib]]
+        name = "RequestProject.Proxy"
+        roots = ["Concrete", "Core", "Dashboard", "Example", "Export", "Interop", "Monitor"]
+
+        [[lean_lib]]
+        name = "RequestProject.Protocol"
+        roots = ["Client", "Core", "Example", "Server", "Soundness"]
+        EOF
+      - lake build
+      - mv lakefile.toml.bak lakefile.toml
+
+  # Stage 2: Full build with mathlib
+  stage2-full:
+    name: "Stage 2 - Full build with mathlib"
+    cache: true
+    needs: stage1-fast
+    commands:
+      - cd minimal
+      - lake build  # Uses full lakefile.toml with mathlib4
+      - lake test
+
+  # Stage 3: Gokujo verification
+  stage3-gokujo:
+    name: "Stage 3 - Gokujo verification gate"
+    needs: stage2-full
+    commands:
+      - |
+        if ! command -v gokujo &> /dev/null; then
+          echo "Building gokujo from source..."
+          cd minimal
+          lean --make Gokujo.lean -o gokujo
+          chmod +x gokujo
+        fi
+      - cd minimal && ../gokujo check RequestProject --json
+
+# Artifacts
+artifacts:
+  paths:
+    - minimal/.lake/build/lib/
+    - minimal/.lake/build/package/
+  expire_in: 7d
+
+# Deployment
+deploy:
+  provider: pipelight.dev
+  channel: stable
+  token: ${PIPELIGHT_TOKEN}
+  commands:
+    - pipelight deploy --artifact lean-worker --channel stable

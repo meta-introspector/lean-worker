@@ -5,7 +5,7 @@
   definitions are not vacuous: the honest exchange really is accepted, and each
   protection really does bite.  Every claim here is closed by computation.
 -/
-import RequestProject.Protocol.Soundness
+import Protocol.Soundness
 
 namespace P2P
 namespace Example

@@ -17,7 +17,7 @@
   `Proxy.Monitor` adds the admission gate and the effects, `Proxy.Dashboard`
   the validated view.
 -/
-import RequestProject.Protocol.Core
+import Protocol.Core
 
 namespace Proxy
 

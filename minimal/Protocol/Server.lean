@@ -19,7 +19,7 @@
   The theorems below say the gate is the only way in: no admission, no
   execution, no certificate, and no state change.
 -/
-import RequestProject.Protocol.Core
+import Protocol.Core
 
 namespace P2P
 
