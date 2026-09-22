@@ -21,7 +21,7 @@
       screen is the real number of bytes the proxy let through, and it is
       within the configured budget.
 -/
-import RequestProject.Proxy.Monitor
+import Proxy.Monitor
 
 namespace Proxy
 
