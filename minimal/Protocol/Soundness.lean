@@ -19,8 +19,8 @@
   callers and prover nodes, and the three-valued cross-check (`agreed`,
   `disagreed`, `unknown`) used when the same job is answered by two peers.
 -/
-import RequestProject.Protocol.Server
-import RequestProject.Protocol.Client
+import Protocol.Server
+import Protocol.Client
 
 namespace P2P
 
