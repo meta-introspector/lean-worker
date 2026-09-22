@@ -16,7 +16,7 @@
     * the journal is append-only and stays chain-valid and monitor-signed;
     * the byte budget is never exceeded, over any number of calls.
 -/
-import RequestProject.Proxy.Core
+import Proxy.Core
 
 namespace Proxy
 

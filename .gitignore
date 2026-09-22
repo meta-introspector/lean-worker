@@ -1,0 +1,40 @@
+# Git ignore for Lean 4 project
+# Ignore build artifacts, compiled files, and temporary files
+
+# Lean-generated files
+*.olean
+*.o
+*.c
+*.gokujo/
+*.gokujo.build
+
+# Generated documentation
+**/*.html
+**/*.md
+
+# Build outputs
+build/
+*.lean-out
+
+# Dependencies
+.lean-project/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Cache and temporary
+.cache/
+*.pyc
+__pycache__/
+*.egg-info/
+*.egg
+
+# Test artifacts
+.lean-test/
+
+# Other generated files
+*.log
+*.tmp

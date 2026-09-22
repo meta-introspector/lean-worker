@@ -20,6 +20,21 @@ proof-checking tool that project needs: it replaces the roles of `make`,
 - **Verified builds**: `Gokujo.lean` and all supporting modules (`GokujoCore.lean`, `GokujoInfra.lean`, `GokujoTest.lean`, `GokujoExec.lean`, `ProductCatalog.lean`) compile successfully with zero errors.
 - **CLI compatibility**: `./Gokujo.lean infra`, `./Gokujo.lean test`, and `./Gokujo.lean exec` commands now work as expected.
 
+## ⚠️ Important: Use the Native Binary for Large Projects
+
+**`lean --run GokujoMain.lean` still uses the old recursive `scanStr` from `GokujoCore.lean`, which causes stack overflows on large projects like Solfunmeme.** The iterative `walkLean` fix is only compiled into the native binary. Always use the native binary for full-directory scans:
+
+```bash
+# Build native binary with the iterative fix
+./gokujo bootstrap -o gokujo --backend system
+
+# Scan large project (works!)
+./gokujo scan /path/to/large/project
+
+# Check large project
+./gokujo check /path/to/large/project
+```
+
 ## Commands
 
 ### `gokujo help`
@@ -97,46 +112,46 @@ The single-file approach ensures:
 
 **Stage 1: Fast iteration (no mathlib, ~5s)**
 ```bash
-lean --run GokujoMain.lean bootstrap -o lean-worker --backend system
-lean --run GokujoMain.lean check minimal/RequestProject
+./gokujo bootstrap -o lean-worker --backend system
+./gokujo check minimal/RequestProject
 ```
 
 **Stage 2: Full verification (with mathlib, ~30s)**
 ```bash
-lean --run GokujoMain.lean check minimal/RequestProject --stage full
+./gokujo check minimal/RequestProject --stage full
 ```
 
 ## Quick Start
 
 1. Generate infrastructure files:
    ```bash
-   lean --run GokujoMain.lean infra
+   ./gokujo infra
    ```
 
 2. Run verification:
    ```bash
-   lean --run GokujoMain.lean check minimal/RequestProject
+   ./gokujo check minimal/RequestProject
    ```
 
 3. Build native executable:
    ```bash
-   lean --run GokujoMain.lean bootstrap -o lean-worker
+   ./gokujo bootstrap -o lean-worker
    ```
 
 ## Agent Workflows
 
 Execute agent workflows using `gokujo`:
 ```bash
-lean --run GokujoMain.lean exec agent-a
-lean --run GokujoMain.lean exec agent-b
-lean --run GokujoMain.lean exec agent-c
+./gokujo exec agent-a
+./gokujo exec agent-b
+./gokujo exec agent-c
 ```
 
 ## Docker Build
 
 Build a self-contained container:
 ```bash
-lean --run GokujoMain.lean bundle -o gokujo-bundle ~/.elan/toolchains/leanprover--lean4-v4.28.0
+./gokujo bundle -o gokujo-bundle ~/.elan/toolchains/leanprover--lean4-v4.28.0
 ./gokujo-bundle infra
 ```
 

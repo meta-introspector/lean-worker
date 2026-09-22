@@ -8,7 +8,7 @@
   implementation used by the real interceptor and by the dashboard verifier.
   If either side ever drifts, one of the two checks fails.
 -/
-import RequestProject.Proxy.Concrete
+import Proxy.Concrete
 
 set_option maxRecDepth 10000
 

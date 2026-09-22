@@ -26,7 +26,7 @@ def creditStatus (usage : CreditUsage) : String :=
 -- Deployed state: 65% as reported by system context
 def creditTracking : CreditUsage :=
   { percentageUsed := 65
-  , status := "Active"
+  , status := "active"
   , policy := "minimize tool calls, batch operations, cache locally"
   , lastUpdated := "2026-09-17"
   }

@@ -5,6 +5,8 @@ on:
     branches: [ main, master, "feature/**" ]
   pull_request:
     branches: [ main, master ]
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly on Sunday at 2AM
 
 jobs:
   build-and-test:
@@ -18,7 +20,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Nix
+      - name: "Setup Nix"
         uses: cachix/install-nix-action@v20
         with:
           extra_nix_config: |
@@ -26,13 +28,13 @@ jobs:
             substituters = https://cache.nixos.org https://nix-community.cachix.org
             trusted-public-keys = cache.nixos.org-1:aNJVHp2ql7migYbNxr0vczfzuVoCYuzzbJVGNCDtU6g= nix-community.cachix.org-1:IT9/7Hwk9xU/HRhDHbhlZW6Nw3NUBmEvfpL6wO3jVNo=
 
-      - name: Install Lean 4 toolchain
+      - name: "Install Lean 4 toolchain"
         run: |
           nix profile install nixpkgs#lean4
           nix profile install nixpkgs#leanc
           nix profile install nixpkgs#lake
 
-      - name: Cache Lake build artifacts
+      - name: "Cache Lake build artifacts"
         uses: actions/cache@v3
         with:
           path: |
@@ -42,7 +44,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-lake-
 
-      - name: Build (Stage 1: No Mathlib - Fast Check)
+      - name: "Build (Stage 1: No Mathlib - Fast Check)"
         if: matrix.stage == 'no-mathlib'
         run: |
           cd minimal
@@ -69,27 +71,27 @@ jobs:
           lake build
           mv lakefile.toml.bak lakefile.toml
 
-      - name: Build (Stage 2: Full Mathlib Build)
+      - name: "Build (Stage 2: Full Mathlib Build)"
         if: matrix.stage == 'full'
         run: |
           cd minimal
           lake build  # Uses full lakefile.toml with mathlib4
           lake exe RequestProject  # Test that the executable works
 
-      - name: Run Gokujo verification (single-file proof gate)
+      - name: "Run Gokujo verification (single-file proof gate)"
         run: |
           # Get or build gokujo
           if ! command -v gokujo &> /dev/null; then
-            echo "Building gojo from source..."
+            echo "Building gokujo from source..."
             lean --make minimal/Gokujo.lean -o gokujo-temp
           else
-            gojo=gokujo
+            gokujo=gokujo
           fi
           # Run comprehensive check
-          ${gogo:-gokujo-temp} check minimal/RequestProject --json > gokujo-report.json || true
+          ${gokujo:-gokujo-temp} check minimal/RequestProject --json > gokujo-report.json
           cat gokujo-report.json
 
-      - name: Upload build artifacts
+      - name: "Upload build artifacts"
         if: matrix.stage == 'full'
         uses: actions/upload-artifact@v3
         with:
@@ -99,7 +101,7 @@ jobs:
             minimal/.lake/build/package/
           retention-days: 7
 
-      - name: Test Lean 4 compiler compatibility
+      - name: "Test Lean 4 compiler compatibility"
         run: |
           lean --version
           leanc --version
@@ -113,22 +115,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Nix
+      - name: "Setup Nix"
         uses: cachix/install-nix-action@v20
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
-      - name: Install pipelight CLI
+      - name: "Install pipelight CLI"
         run: |
           curl -fsSL https://pipelight.dev/install.sh | sh
           export PATH="$HOME/.pipelight/bin:$PATH"
 
-      - name: Build with pipelight.dev
+      - name: "Build with pipelight.dev"
         run: |
           pipelight build --manifest pipelight.yml --artifact lean-worker
 
-      - name: Deploy to pipelight.dev CDN
+      - name: "Deploy to pipelight.dev CDN"
         if: success()
         run: |
           pipelight deploy --artifact lean-worker --channel stable
@@ -138,18 +140,17 @@ jobs:
   # Mathlib split/merge optimization (weekly)
   mathlib-optimization:
     runs-on: ubuntu-latest
-    schedule:
-      - cron: '0 2 * * 0'  # Weekly on Sunday at 2AM
+    needs: [build-and-test]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Nix
+      - name: "Setup Nix"
         uses: cachix/install-nix-action@v20
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
 
-      - name: Run staged mathlib build strategy
+      - name: "Run staged mathlib build strategy"
         run: |
           cd minimal
           # Step 1: Build without mathlib

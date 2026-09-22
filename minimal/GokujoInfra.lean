@@ -44,7 +44,7 @@ def lakefile : String :=
   "name = \"RequestProject.PluginContexts\"\n" ++
   "deps = [\"RequestProject\"]\n" ++
   "roots = [" ++
-  "activity_profile, aristotle_manager, aristotle_tools, cid_index_lean, dir_to_shmem, eco_research, emacs_search, erdfa_publish, forgecode, forgecode_extras, forge_plugin_tantivy, git_tools, harbor, hive_driver, index_to_shmem, ipld_car_shmem_client, ipld_car_shmem_server, lean4_block_server, lean4_cbor_bridge, lean4_repl, lean4_twin, leta_ipld_memory, monster_hecke, monster_voa, observer_qa, omnisearch, omnisearch_config, parquet_index, proof_robot, repo_headers, shard_tools, shmem_dedup, shmem_optimize, shmem_warm, spec_to_proof, spool, spool_source, tantivy_indexer, task_manager, test_tag_42, tokenizer, zombie_driver, zos_a11y_gui, zos_github_manager, zos_noc_manager, zos_plugin_generators" ++
+  "activity_profile, aristotle_manager, aristotle_tools, cid_index_lean, dir_to_shmem, eco_research, emacs_search, erdfa_publish, forgecode, forgecode_extras, forge_plugin_tantivy, git_tools, harbor, hive_driver, index_to_shmem, ipld_car_shmem_client, ipld_car_shmem_server, lean4_block_server, lean4_cbor_bridge, lean4_repl, lean4_twin, letta_ipld_memory, monster_hecke, monster_voa, observer_qa, omnisearch, omnisearch_config, parquet_index, proof_robot, repo_headers, shard_tools, shmem_dedup, shmem_optimize, shmem_warm, spec_to_proof, spool, spool_source, tantivy_indexer, task_manager, test_tag_42, tokenizer, zombie_driver, zos_a11y_gui, zos_github_manager, zos_noc_manager, zos_plugin_generators" ++
   "]\n\n" ++
   "[[lean_exe]]\n" ++
   "name = \"proxy_report\"\n" ++
@@ -92,7 +92,7 @@ def fastLakefile : String :=
   "name = \"RequestProject.PluginContexts\"\n" ++
   "deps = [\"RequestProject\"]\n" ++
   "roots = [" ++
-  "activity_profile, aristotle_manager, aristotle_tools, cid_index_lean, dir_to_shmem, eco_research, emacs_search, erdfa_publish, forgecode, forgecode_extras, forge_plugin_tantivy, git_tools, harbor, hive_driver, index_to_shmem, ipld_car_shmem_client, ipld_car_shmem_server, lean4_block_server, lean4_cbor_bridge, lean4_repl, lean4_twin, leta_ipld_memory, monster_hecke, monster_voa, observer_qa, omnisearch, omnisearch_config, parquet_index, proof_robot, repo_headers, shard_tools, shmem_dedup, shmem_optimize, shmem_warm, spec_to_proof, spool, spool_source, tantivy_indexer, task_manager, test_tag_42, tokenizer, zombie_driver, zos_a11y_gui, zos_github_manager, zos_noc_manager, zos_plugin_generators" ++
+  "activity_profile, aristotle_manager, aristotle_tools, cid_index_lean, dir_to_shmem, eco_research, emacs_search, erdfa_publish, forgecode, forgecode_extras, forge_plugin_tantivy, git_tools, harbor, hive_driver, index_to_shmem, ipld_car_shmem_client, ipld_car_shmem_server, lean4_block_server, lean4_cbor_bridge, lean4_repl, lean4_twin, letta_ipld_memory, monster_hecke, monster_voa, observer_qa, omnisearch, omnisearch_config, parquet_index, proof_robot, repo_headers, shard_tools, shmem_dedup, shmem_optimize, shmem_warm, spec_to_proof, spool, spool_source, tantivy_indexer, task_manager, test_tag_42, tokenizer, zombie_driver, zos_a11y_gui, zos_github_manager, zos_noc_manager, zos_plugin_generators" ++
   "]\n\n" ++
   "[[lean_exe]]\n" ++
   "name = \"proxy_report\"\n" ++

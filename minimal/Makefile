@@ -9,16 +9,16 @@ help:
 	@echo "  make clean     - Clean build artifacts"
 
 build:
-	LEAN_PATH=. lean --run GokujoMain.lean bootstrap -o lean-worker --backend system
+	./gokujo bootstrap -o lean-worker --backend system
 
 test:
-	LEAN_PATH=. lean --run GokujoMain.lean check minimal/RequestProject
+	./gokujo check minimal/RequestProject
 
 infra:
-	LEAN_PATH=. lean --run GokujoMain.lean infra
+	./gokujo infra
 
 verify:
-	LEAN_PATH=. lean --run GokujoMain.lean check minimal/RequestProject --stage full
+	./gokujo check minimal/RequestProject --stage full
 
 clean:
 	rm -rf .lake build
