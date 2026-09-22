@@ -11,7 +11,7 @@
   chain hashes, however, are the real ones, so the exported file verifies under
   exactly the same chain rule as the live journal.
 -/
-import RequestProject.Proxy.Example
+import Proxy.Example
 
 namespace Proxy
 namespace Export
