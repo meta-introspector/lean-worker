@@ -189,4 +189,49 @@ Each `obligations.jsonl` line ≙ one `P2P.Job.proveGoal` offer:
   ```
 - Full-corpus artifacts land at `/mnt/data1/aristotle-merge/`:
   `cut-manifest.json`, `cut-manifest.check.log`, `bones/<project>/…`,
-  `bones/ALL/summary.json`.
+  `bones/ALL/summary.json`, `phase2/ledger.jsonl`.
+
+## 6. SCP containment (2026-09-29)
+
+**Policy**: over-budget sources are quarantined to phase 2, not debugged in
+phase 1. A budget is given; anything past it is contained, logged, and
+deferrged. Secure. Contain. Protect.
+
+**The "second stack overflow" was two different animals**:
+
+1. **Lake-walk overflow** (most cut failures): `<project>/.lake/packages/*`
+   are symlinks into the shared lake cache (`mathlib`, `batteries`, …). The
+   knife **follows symlinks** when walking a project dir, walks all of
+   Mathlib (with cyclic version dirs), and dies — or grinds I/O for 25 min
+   (this is what hung `solfunmeme-split`; killed by hand, logged FAIL).
+   A symlink **lab** of the project's own `.lean` files is immune: `find`
+   never descends into symlinked dirs, and `*/.lake/*` is pruned anyway.
+   Consequence: most "failed" projects cut **clean** in the lab and are
+   fully rescuable — and per-project file counts stay honest (shared deps
+   not counted 572×).
+2. **File-budget overflow**: a single pathological file overflows the knife
+   alone. `MonsterCharacterTable.lean` (giant `/-!` doc block + thousands of
+   number tokens) and its whole twin family — `MonsterCharTableFactorization`,
+   `MonsterCharTableSparse`, and the `server_variant_*_` nestings — abort
+   (SIGABRT/134) even solo. The bisect re-derives the family automatically:
+   every project embedding it gets exactly its family members quarantined.
+
+**Tooling** (`scripts/scp-quarantine.sh CORPUS CUTPARTS PHASE2 [BUDGET]`):
+for each project in `failures.log`, bisect via symlink labs; clean subset →
+RESCUED (folded into a cut-all-resume manifest — re-run `cut-all.sh` to
+resume+merge); single over-budget file → one `phase2/ledger.jsonl` line
+(`reason`: `crash-signal-134` | `budget-timeout` | `depth-limit-block`).
+Field bugs fixed on the way: list/dir **namespace collision** (v1 wrote 29
+garbage manifests: `all.list.a` became both list and dir — v2 keeps
+`$LAB/l/` and `$LAB/d/` disjoint, inode-keyed ids); stdin hygiene
+(`</dev/null` on every knife call — a shared stdin made `wc` eat the loop's
+position); rescue manifest always written so resume never re-crashes.
+
+**Worker side**: knife timeout now records `status: "quarantined"` (budget
+exceeded), not `failed`; `coverage-report.py` prints a `q` column and
+quarantined twin weight **leaves the phase-1 denominator** — phase 1 is done
+when every non-quarantined obligation is proved (exit 0).
+
+**First-run ledger facts** (run in progress at write time): Monster-family
+files dominate quarantines; rescued counters per project in
+`phase2/projects.tsv`, summary in `phase2/summary.json`.
