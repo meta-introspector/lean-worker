@@ -1,28 +1,35 @@
 #!/usr/bin/env python3
-"""emit-bones.py — carve a project's cut bones into launchpad input files.
+"""emit-bones.py — carve cut projects into launchpad bones.
 
-Input:  one Aristotle project directory (already scanned into manifest.jsonl).
-Output: <out>/<project>/ with three JSONL bone files + summary.json:
+Single project:
+    emit-bones.py PROJECT_DIR [--cache manifest.jsonl] [--out BONES_ROOT]
 
+Whole corpus (one cache load, one lex pass, per-project bones + aggregate):
+    emit-bones.py CORPUS_ROOT --all [--cache manifest.jsonl] [--out BONES_ROOT]
+
+Output per project: <out>/<project>/ with
   specs.jsonl       one per UNIQUE file (content-addressed by sha256):
-                    {id, module, digest, path, imports, decls, lines, bytes}
+                    {id, digest, module, path, imports, decls, lines, bytes}
   twins.jsonl       one duplicate group (same digest, >1 file):
                     {id, digest, canonical, members, n}
   obligations.jsonl one hole per UNIQUE (digest, decl) — the theorems the
                     proof workers actually get handed:
                     {id, project, module, decl, kind, line, digest, path, weight}
+  summary.json      counts + internal consistency check
+
+In --all mode also writes <out>/ALL/summary.json with corpus totals.
 
 Holes come from the knife itself (`gokujo scan --json`), the token-faithful
 ground truth (a `sorry` in a comment is not a sorry). Twins collapse: an
 obligation present in N twin files is one obligation with weight N.
 
+Gotcha: gokujo's scan digest (16 hex) is NOT the cache's sha256 (64 hex).
+Joins go through the canonical file's realpath, never across digest spaces.
+
 Counts cross-check against `gokujo cut`:
   len(specs) == unique_files
-  sum(n over twins) + #singletons == files
-  dedup'd obligations == cut's per-project hole count (up to twin dedup)
-
-Usage:
-  emit-bones.py PROJECT_DIR [--cache manifest.jsonl] [--out BONES_ROOT]
+  twin_members + singletons == files
+  cut obligations / weight = corpus instances
 """
 import argparse
 import hashlib
@@ -36,36 +43,44 @@ GOKUJO = os.environ.get(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "gokujo"))
 
 
-def short(s, n=12):
-    return s[:n]
-
-
 def bone_id(prefix, *parts):
     h = hashlib.sha256("\x1f".join(parts).encode()).hexdigest()[:16]
     return f"{prefix}_{h}"
 
 
-def load_project_entries(cache_path, project_dir):
-    """Cache entries whose path starts with the project dir (resolved)."""
-    root = os.path.realpath(project_dir).rstrip(os.sep) + os.sep
-    out = []
-    with open(cache_path) as f:
+def load_cache(path):
+    entries = []
+    with open(path) as f:
         for line in f:
             line = line.strip()
-            if not line:
-                continue
-            e = json.loads(line)
-            p = os.path.realpath(e["path"])
-            if p.startswith(root):
-                e["path"] = p
-                out.append(e)
-    return out, root
+            if line:
+                entries.append(json.loads(line))
+    return entries
 
 
-def lex_holes(paths, project_root):
+def project_of(path, corpus_root):
+    """Project name = first path component under corpus_root, else None."""
+    try:
+        rel = os.path.relpath(os.path.realpath(path), corpus_root)
+    except ValueError:
+        return None
+    top = rel.split(os.sep, 1)[0]
+    return None if top in (".", "..") else top
+
+
+def group_by_digest(entries):
+    by_digest = {}
+    for e in sorted(entries, key=lambda e: e["path"]):
+        by_digest.setdefault(e["sha256"], []).append(e)
+    return by_digest
+
+
+def lex_canonicals(paths, project_root):
     """realpath -> {holes, module, rel}, via gokujo scan --json.
+
     Keyed by path because gokujo's own digest (16 hex chars) is not the
-    cache's sha256 (64 hex chars) — the two must not be joined."""
+    cache's sha256 (64 hex chars) — the two must not be joined.
+    """
     by_path = {}
     B = 200
     for i in range(0, len(paths), B):
@@ -79,46 +94,29 @@ def lex_holes(paths, project_root):
         d = json.loads(r.stdout)
         for f in d.get("files", []):
             p = os.path.realpath(f["path"])
-            rel = os.path.relpath(p, project_root)
             by_path[p] = {"holes": f.get("holes", []),
                           "module": f["module"],
-                          "rel": rel}
+                          "rel": os.path.relpath(p, project_root)}
     return by_path
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("project_dir")
-    ap.add_argument("--cache", default="/mnt/data1/aristotle-merge/manifest.jsonl")
-    ap.add_argument("--out", default="/mnt/data1/aristotle-merge/bones")
-    args = ap.parse_args()
-
-    entries, root = load_project_entries(args.cache, args.project_dir)
-    if not entries:
-        print(f"no cache entries under {root}", file=sys.stderr)
-        return 1
-    project = os.path.basename(root.rstrip(os.sep))
-    outdir = os.path.join(args.out, project)
+def write_bones(project, entries, corpus_root, outdir, lexed):
+    """Write one project's bone files. `lexed` maps canonical realpath ->
+    lexed info for every canonical in this project. Returns summary dict."""
+    root = os.path.realpath(corpus_root).rstrip(os.sep) + os.sep
     os.makedirs(outdir, exist_ok=True)
 
-    # canonical file per digest (first path wins)
-    by_digest = {}
-    for e in sorted(entries, key=lambda e: e["path"]):
-        by_digest.setdefault(e["sha256"], []).append(e)
-
+    by_digest = group_by_digest(entries)
     digests = sorted(by_digest)
-    lexed = lex_holes([v[0]["path"] for v in by_digest.values()], root)
 
     def rel_module(e):
-        """Project-relative dotted module for a cache entry."""
         return os.path.realpath(e["path"])[len(root):-5].replace(os.sep, ".")
 
-    # specs
     specs = 0
     with open(os.path.join(outdir, "specs.jsonl"), "w") as f:
         for dg in digests:
             e = by_digest[dg][0]
-            rec = {
+            f.write(json.dumps({
                 "id": bone_id("spec", dg),
                 "digest": dg,
                 "module": rel_module(e),
@@ -127,11 +125,9 @@ def main():
                 "decls": e.get("decls", []),
                 "lines": e.get("lines"),
                 "bytes": e.get("bytes"),
-            }
-            f.write(json.dumps(rec) + "\n")
+            }) + "\n")
             specs += 1
 
-    # twins
     twins = 0
     twin_members = 0
     singletons = 0
@@ -151,7 +147,6 @@ def main():
             twins += 1
             twin_members += len(members)
 
-    # obligations: unique (digest, decl) with twin weight
     obligations = 0
     with open(os.path.join(outdir, "obligations.jsonl"), "w") as f:
         for dg in digests:
@@ -160,7 +155,7 @@ def main():
                 continue
             members = by_digest[dg]
             for h in lx["holes"]:
-                rec = {
+                f.write(json.dumps({
                     "id": bone_id("obl", dg, h["name"]),
                     "project": project,
                     "module": rel_module(members[0]),
@@ -170,8 +165,7 @@ def main():
                     "digest": dg,
                     "path": members[0]["path"],
                     "weight": len(members),
-                }
-                f.write(json.dumps(rec) + "\n")
+                }) + "\n")
                 obligations += 1
 
     summary = {
@@ -184,15 +178,90 @@ def main():
         "singletons": singletons,
         "obligations": obligations,
     }
+    summary["consistent"] = (specs == len(digests)
+                             and twin_members + singletons == len(entries))
     with open(os.path.join(outdir, "summary.json"), "w") as f:
         json.dump(summary, f, indent=1)
         f.write("\n")
+    return summary
 
-    print(json.dumps(summary, indent=1))
-    ok = (specs == len(digests)
-          and twin_members + singletons == len(entries))
-    print("PASS" if ok else "FAIL", f"→ {outdir}")
-    return 0 if ok else 1
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("root", help="project dir, or corpus root with --all")
+    ap.add_argument("--all", action="store_true",
+                    help="carve every project under CORPUS_ROOT")
+    ap.add_argument("--cache", default="/mnt/data1/aristotle-merge/manifest.jsonl")
+    ap.add_argument("--out", default="/mnt/data1/aristotle-merge/bones")
+    args = ap.parse_args()
+
+    print("loading cache…", file=sys.stderr)
+    cache = load_cache(args.cache)
+    print(f"cache: {len(cache)} entries", file=sys.stderr)
+
+    corpus_root = os.path.dirname(os.path.realpath(args.root).rstrip(os.sep)) \
+        if not args.all else os.path.realpath(args.root)
+
+    # group entries per project
+    projects = {}
+    for e in cache:
+        if not os.path.exists(e["path"]):
+            continue
+        p = project_of(e["path"], corpus_root)
+        if p is None:
+            continue
+        # single-project mode: only the named project
+        if not args.all:
+            name = os.path.basename(os.path.realpath(args.root).rstrip(os.sep))
+            if p != name:
+                continue
+        projects.setdefault(p, []).append(e)
+
+    if not args.all:
+        name = os.path.basename(os.path.realpath(args.root).rstrip(os.sep))
+        if name not in projects:
+            print(f"no cache entries under {args.root}", file=sys.stderr)
+            return 1
+        projects = {name: projects[name]}
+
+    print(f"{len(projects)} projects", file=sys.stderr)
+
+    # one lex pass over all canonicals, batched per project (keeps memory sane)
+    totals = {"projects": len(projects), "files": 0, "unique_files": 0,
+              "specs": 0, "twin_groups": 0, "twin_members": 0,
+              "singletons": 0, "obligations": 0}
+    failures = []
+    for n, (project, entries) in enumerate(sorted(projects.items()), 1):
+        root = os.path.realpath(corpus_root).rstrip(os.sep) + os.sep
+        by_digest = group_by_digest(entries)
+        canonicals = [v[0]["path"] for v in by_digest.values()]
+        lexed = lex_canonicals(canonicals, root)
+        summary = write_bones(project, entries, corpus_root,
+                              os.path.join(args.out, project), lexed)
+        totals["files"] += summary["files"]
+        totals["unique_files"] += summary["unique_files"]
+        totals["specs"] += summary["specs"]
+        totals["twin_groups"] += summary["twin_groups"]
+        totals["twin_members"] += summary["twin_members"]
+        totals["singletons"] += summary["singletons"]
+        totals["obligations"] += summary["obligations"]
+        if not summary["consistent"]:
+            failures.append(project)
+        print(f"[{n}/{len(projects)}] {project}: "
+              f"{summary['files']} files, {summary['unique_files']} unique, "
+              f"{summary['obligations']} obligations", flush=True)
+
+    if args.all:
+        os.makedirs(os.path.join(args.out, "ALL"), exist_ok=True)
+        with open(os.path.join(args.out, "ALL", "summary.json"), "w") as f:
+            json.dump(totals, f, indent=1)
+            f.write("\n")
+
+    print(json.dumps(totals, indent=1))
+    if failures:
+        print("INCONSISTENT:", ", ".join(failures[:10]), file=sys.stderr)
+    print("PASS" if not failures else "FAIL", f"→ {args.out}")
+    return 0 if not failures else 1
 
 
 if __name__ == "__main__":
