@@ -16,8 +16,11 @@ Environment=JOB_TIMEOUT_SECONDS=3600
 # Optional mesh gossip (tracker lib/control.mjs /control/sync):
 #Environment=CONTROL_PEERS=http://peer1:8788,http://peer2:8788
 #Environment=CONTROL_TOKEN=change-me
-#ExecStart=/usr/bin/node /home/mdupont/projects/lean-worker/minimal/scripts/bone-worker.mjs
-ExecStart=/usr/bin/node /home/mdupont/projects/lean-worker/minimal/scripts/bone-worker.mjs
+# node lives in the user's nix profile, not /usr/bin (status 203/EXEC otherwise)
+ExecStart=/home/mdupont/.nix-profile/bin/node /home/mdupont/projects/lean-worker/minimal/scripts/bone-worker.mjs
+# lean/lake/elan live in the user's elan + nix profiles; without this the
+# knife's build stage dies with "no toolchain available" on every job
+Environment=PATH=/home/mdupont/.elan/bin:/home/mdupont/.nix-profile/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 Restart=always
 RestartSec=10
 # The state ledger makes restarts safe: claims are written before work starts,

@@ -31,8 +31,8 @@
 // same record can be gossiped with lib/control.mjs's announce/claim when the
 // mesh goes live.
 import { spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync, mkdirSync, appendFileSync, renameSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, appendFileSync, renameSync, statfsSync } from 'node:fs';
+import { join, dirname } from 'node:path';
 import { hostname } from 'node:os';
 
 const GOKUJO = process.env.GOKUJO || join(import.meta.dirname, '..', 'gokujo');
@@ -44,6 +44,9 @@ const NODE_ID = process.env.NODE_ID || hostname();
 const OFFERS = join(BONES_ROOT, 'offers.jsonl');
 const STATE_FILE = join(STATE_DIR, 'state.json');
 const RESULTS = join(STATE_DIR, 'results.jsonl');
+// Refuse to start a job when the source filesystem is nearly full: the knife's
+// build stage writes oleans for the whole import closure next to the source.
+const MIN_FREE_BYTES = Number(process.env.MIN_FREE_GB || 5) * 1024 ** 3;
 
 let stopping = false;
 for (const sig of ['SIGINT', 'SIGTERM']) {
@@ -86,14 +89,16 @@ function gossip(msg) {
   }
 }
 
-function runKnife(path) {
+function runKnife(path, cwd) {
   // `gokujo check` = scan + graph + build + sorry + axioms as one gate.
   // Exit 0: the file compiles, has no reachable sorry, and only allowed axioms.
-  // cwd = STATE_DIR so .gokujo/build lands in the worker's state dir, not in
-  // the corpus tree; a full check compiles the file's whole import closure
-  // (Mathlib projects can take a long while — that IS the proof work).
+  // cwd MUST be the source file's directory: the knife resolves job paths
+  // against cwd at the build stage (an absolute path is catenated onto it) and
+  // keeps its .gokujo build cache in cwd — empirically pinned, not documented.
+  // A full check compiles the file's whole import closure (Mathlib projects
+  // can take a long while — that IS the proof work).
   const r = spawnSync(GOKUJO, ['check', path],
-    { encoding: 'utf8', timeout: JOB_TIMEOUT_MS, cwd: STATE_DIR });
+    { encoding: 'utf8', timeout: JOB_TIMEOUT_MS, cwd });
   return { code: r.status ?? -1, out: (r.stdout || '') + (r.stderr || '') };
 }
 
@@ -108,7 +113,23 @@ function work(offer, state) {
   if (!path || !existsSync(path)) {
     outcome = { status: 'failed', reason: 'source file missing' };
   } else {
-    const { code, out } = runKnife(path);
+    // The knife writes its build cache beside the source, so guard the source
+    // filesystem before burning minutes on a build that would die at 100%.
+    const cwd = dirname(path);
+    try {
+      const st = statfsSync(cwd);
+      if (st.bavail * st.bsize < MIN_FREE_BYTES) {
+        console.log(`${ts()} FATAL ${jobId} — ${cwd}'s fs has < ${(MIN_FREE_BYTES / 1024 ** 3) | 0}G free; free space, then restart`);
+        process.exit(2);
+      }
+    } catch { /* statfs failed: let the knife try and report */ }
+    const { code, out } = runKnife(path, cwd);
+    if (/no toolchain available/.test(out)) {
+      // Infra failure, not a verdict on the proof: record nothing, so the
+      // claim stays outcome-less and is retried on the next start.
+      console.log(`${ts()} FATAL ${jobId} — knife has no toolchain; fix service env (PATH), then restart`);
+      process.exit(2);
+    }
     if (code === 0) outcome = { status: 'proved', note: 'gokujo check exit 0' };
     else outcome = { status: 'failed', reason: `gokujo check exit ${code}`, tail: out.split('\n').slice(-12).join('\n') };
   }
@@ -128,7 +149,9 @@ async function main() {
   console.log(`${ts()} bone-worker ${NODE_ID} started; offers=${OFFERS} state=${STATE_FILE}`);
   while (!stopping) {
     const offers = loadOffers()
-      .filter((o) => !state.claims[o.jobId])
+      // outcome-less claims (crash mid-job, infra exit) are retried:
+      // the knife is idempotent, at-least-once beats silently losing jobs
+      .filter((o) => !state.claims[o.jobId] || !state.claims[o.jobId].outcome)
       .sort((a, b) => (b.weight ?? 1) - (a.weight ?? 1) || String(a.jobId).localeCompare(String(b.jobId)));
     if (!offers.length) {
       if (existsSync(OFFERS)) {
