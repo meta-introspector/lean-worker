@@ -131,6 +131,11 @@ function work(offer, state) {
       process.exit(2);
     }
     if (code === 0) outcome = { status: 'proved', note: 'gokujo check exit 0' };
+    else if (code === 124) {
+      // SCP: the knife blew the time budget — this source is contraband,
+      // quarantined to phase 2, not a phase-1 failure.
+      outcome = { status: 'quarantined', reason: `budget exceeded (${JOB_TIMEOUT_MS / 1000}s)` };
+    }
     else outcome = { status: 'failed', reason: `gokujo check exit ${code}`, tail: out.split('\n').slice(-12).join('\n') };
   }
   const rec = { ...offer, node: NODE_ID, ...outcome, finishedAt: ts() };

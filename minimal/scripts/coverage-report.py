@@ -8,9 +8,11 @@ Joins the workers' results.jsonl (bone-worker.mjs output) against the bones
   claimed       with a claim recorded (in state.json ledgers, if provided)
   proved        gokujo check exit 0 (file compiles, no reachable sorry)
   failed        attempted but the knife refused
+  q(uarantined) SCP: source over budget (worker timeout) — deferred to phase 2,
+                excluded from the phase-1 coverage denominator
   pending       not yet attempted
   twin_weight   corpus instances discharged by the proved obligations
-  coverage      proved twin_weight / total twin_weight
+  coverage      proved twin_weight / (total twin_weight - quarantined twin_weight)
 
 Usage:
   coverage-report.py BONES_ROOT [--results RESULTS.jsonl]... [--json OUT]
@@ -65,13 +67,13 @@ def main():
                           os.path.join(args.bones_root, d, "obligations.jsonl")))
 
     rows = []
-    total = dict(obligations=0, proved=0, failed=0, pending=0,
-                 weight=0, proved_weight=0)
+    total = dict(obligations=0, proved=0, failed=0, quarantined=0, pending=0,
+                 weight=0, proved_weight=0, quarantined_weight=0)
     for proj in projects:
         obls = [json.loads(l) for l in
                 open(os.path.join(args.bones_root, proj, "obligations.jsonl")) if l.strip()]
-        c = dict(obligations=len(obls), proved=0, failed=0, pending=0,
-                 weight=0, proved_weight=0)
+        c = dict(obligations=len(obls), proved=0, failed=0, quarantined=0, pending=0,
+                 weight=0, proved_weight=0, quarantined_weight=0)
         for o in obls:
             c["weight"] += o.get("weight", 1)
             r = done.get(o["id"])
@@ -80,24 +82,28 @@ def main():
             elif r.get("status") == "proved":
                 c["proved"] += 1
                 c["proved_weight"] += o.get("weight", 1)
+            elif r.get("status") == "quarantined":
+                c["quarantined"] += 1
+                c["quarantined_weight"] += o.get("weight", 1)
             else:
                 c["failed"] += 1
-        c["coverage"] = (c["proved_weight"] / c["weight"]) if c["weight"] else 1.0
+        denom = c["weight"] - c["quarantined_weight"]
+        c["coverage"] = (c["proved_weight"] / denom) if denom > 0 else 1.0
         for k in total:
             total[k] += c[k]
         rows.append((proj, c))
 
-    print(f"{'project':<44} {'obl':>5} {'ok':>5} {'fail':>5} {'pend':>5} "
+    print(f"{'project':<44} {'obl':>5} {'ok':>5} {'fail':>5} {'q':>4} {'pend':>5} "
           f"{'weight':>7} {'cov%':>6}")
     for proj, c in rows:
         print(f"{proj[:43]:<44} {c['obligations']:>5} {c['proved']:>5} "
-              f"{c['failed']:>5} {c['pending']:>5} {c['weight']:>7} "
-              f"{100 * c['coverage']:>5.1f}")
-    tw = total["weight"] or 1
-    print("-" * 84)
+              f"{c['failed']:>5} {c['quarantined']:>4} {c['pending']:>5} "
+              f"{c['weight']:>7} {100 * c['coverage']:>5.1f}")
+    tw = (total["weight"] - total["quarantined_weight"]) or 1
+    print("-" * 89)
     print(f"{'TOTAL':<44} {total['obligations']:>5} {total['proved']:>5} "
-          f"{total['failed']:>5} {total['pending']:>5} {total['weight']:>7} "
-          f"{100 * total['proved_weight'] / tw:>5.1f}")
+          f"{total['failed']:>5} {total['quarantined']:>4} {total['pending']:>5} "
+          f"{total['weight']:>7} {100 * total['proved_weight'] / tw:>5.1f}")
 
     if args.json_out:
         out = {
@@ -107,7 +113,8 @@ def main():
         with open(args.json_out, "w") as f:
             json.dump(out, f, indent=1)
             f.write("\n")
-    return 0 if total["proved_weight"] == total["weight"] else 1
+    # phase 1 is done when every non-quarantined obligation is proved
+    return 0 if total["proved_weight"] == tw else 1
 
 
 if __name__ == "__main__":
