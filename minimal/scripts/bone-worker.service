@@ -1,0 +1,29 @@
+[Unit]
+Description=bone proof worker (gokujo launchpad mesh)
+Documentation=file:///home/mdupont/projects/lean-worker/minimal/docs/SESSION_2026-09-28_CUT_BONES.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mdupont
+Group=mdupont
+# Offers come from emit-offers.mjs; results and the claim ledger land here.
+Environment=BONES_ROOT=/mnt/data1/aristotle-merge/bones
+Environment=STATE_DIR=/var/lib/bone-worker
+Environment=POLL_SECONDS=30
+Environment=JOB_TIMEOUT_SECONDS=3600
+# Optional mesh gossip (tracker lib/control.mjs /control/sync):
+#Environment=CONTROL_PEERS=http://peer1:8788,http://peer2:8788
+#Environment=CONTROL_TOKEN=change-me
+#ExecStart=/usr/bin/node /home/mdupont/projects/lean-worker/minimal/scripts/bone-worker.mjs
+ExecStart=/usr/bin/node /home/mdupont/projects/lean-worker/minimal/scripts/bone-worker.mjs
+Restart=always
+RestartSec=10
+# The state ledger makes restarts safe: claims are written before work starts,
+# results after. A killed worker re-claims at most its in-flight job.
+KillSignal=SIGTERM
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target
