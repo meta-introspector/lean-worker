@@ -13,9 +13,10 @@ Environment=BONES_ROOT=/mnt/data1/aristotle-merge/bones
 Environment=STATE_DIR=/var/lib/bone-worker
 Environment=POLL_SECONDS=30
 Environment=JOB_TIMEOUT_SECONDS=3600
-# Optional mesh gossip (tracker lib/control.mjs /control/sync):
-#Environment=CONTROL_PEERS=http://peer1:8788,http://peer2:8788
-#Environment=CONTROL_TOKEN=change-me
+# Mesh gossip (tracker lib/control.mjs /control/sync): local tracker dev
+# peer on 3318; token must match its CONTROL_TOKEN (.dev.vars / worker secret)
+Environment=CONTROL_PEERS=http://127.0.0.1:3318
+Environment=CONTROL_TOKEN=scp-mesh-dev-token
 # node lives in the user's nix profile, not /usr/bin (status 203/EXEC otherwise)
 ExecStart=/home/mdupont/.nix-profile/bin/node /home/mdupont/projects/lean-worker/minimal/scripts/bone-worker.mjs
 # lean/lake/elan live in the user's elan + nix profiles; without this the

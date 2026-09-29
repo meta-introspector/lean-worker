@@ -89,6 +89,14 @@ function gossip(msg) {
   }
 }
 
+// Join the mesh: register this node in every peer's registry
+// (lib/control.mjs applyNodeAnnouncement — newest ts wins per nodeId).
+function announce() {
+  gossip({ kind: 'announce', node: {
+    nodeId: NODE_ID, kind: 'local', role: 'bone-worker', ts: Date.now(),
+  } });
+}
+
 function runKnife(path, cwd) {
   // `gokujo check` = scan + graph + build + sorry + axioms as one gate.
   // Exit 0: the file compiles, has no reachable sorry, and only allowed axioms.
@@ -151,6 +159,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 async function main() {
   mkdirSync(STATE_DIR, { recursive: true });
   const state = loadState();
+  announce();   // join the mesh registry before the first claim
   console.log(`${ts()} bone-worker ${NODE_ID} started; offers=${OFFERS} state=${STATE_FILE}`);
   while (!stopping) {
     const offers = loadOffers()
