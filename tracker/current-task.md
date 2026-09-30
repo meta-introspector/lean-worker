@@ -1,12 +1,12 @@
 # Current Task — lean-worker
 
-- **Task:** bone-proof-loop-close
-- **Branch:** agent/bone-proof-loop-close
-- **Worktree:** worktrees/bone-proof-loop-close
+- **Task:** p2p-proving-bootstrap
+- **Branch:** agent/p2p-proving-bootstrap
+- **Worktree:** worktrees/p2p-proving-bootstrap
 - **Status:** in_progress
 - **Updated:** 2026-09-30
 
 ## Description
-Close the bone proof loop: watch task-runner bone-* summaries, re-emit offers, flip results.jsonl to proved
+Wire kant rooms (transport) + control mesh (gossip) + bone offers (jobs) + gokujo (checker) + task-runner (agents) into a self-hosting p2p proving loop, then self-apply: use the network to rewrite and check the apps themselves until the proof engine lives in the browser
 
-Enter: cd worktrees/bone-proof-loop-close
+Enter: cd worktrees/p2p-proving-bootstrap
