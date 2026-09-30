@@ -5,7 +5,7 @@
       lake exe proxy_report [outdir]      (default: dashboard/data)
 -/
 
-import RequestProject.Proxy.Export
+import Proxy.Export
 
 def main (args : List String) : IO Unit := do
   let outdir := args.headD "dashboard/data"

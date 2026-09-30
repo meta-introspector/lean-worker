@@ -1,6 +1,6 @@
 name = "Minimal"
 version = "0.1.0"
-defaultTargets = ["Minimal"]
+defaultTargets = ["RequestProject"]
 
 [[require]]
 name = "mathlib"
@@ -8,20 +8,20 @@ git = "https://github.com/leanprover-community/mathlib4.git"
 rev = "v4.28.0"
 
 [[lean_lib]]
-name = "Minimal"
-roots = ["Agent", "APICapabilities", "CommandExecution", "CreditUsage", "ExecutionTrace", "ToolProvenance", "Twin", "Main", "ProxyReport"]
+name = "RequestProject"
+roots = ["RequestProject.Agent", "RequestProject.APICapabilities", "RequestProject.CommandExecution", "RequestProject.CreditUsage", "RequestProject.ExecutionTrace", "RequestProject.ToolProvenance", "RequestProject.Twin", "RequestProject.Main", "RequestProject.ProxyReport"]
 
 [[lean_lib]]
-name = "Minimal.Proxy"
-roots = ["Concrete", "Core", "Dashboard", "Example", "Export", "Interop", "Monitor"]
+name = "Proxy"
+roots = ["Proxy.Concrete", "Proxy.Core", "Proxy.Dashboard", "Proxy.Example", "Proxy.Export", "Proxy.Interop", "Proxy.Monitor"]
 
 [[lean_lib]]
-name = "Minimal.Protocol"
-roots = ["Client", "Core", "Example", "Server", "Soundness"]
+name = "Protocol"
+roots = ["Protocol.Client", "Protocol.Core", "Protocol.Example", "Protocol.Server", "Protocol.Soundness"]
 
 [[lean_lib]]
 name = "Minimal.PluginContexts"
-roots = ["activity_profile", "aristotle_manager", "cid_index_lean", "dir_to_shmem", "eco_research", "emacs_search", "erdfa_publish", "forgecode", "forgecode_extras", "forge_plugin_tantivy", "git_tools", "harbor", "hive_driver", "index_to_shmem", "ipld_car_shmem_client", "ipld_car_shmem_server", "lean4_block_server", "lean4_cbor_bridge", "lean4_repl", "lean4_twin", "letta_ipld_memory", "monster_hecke", "monster_voa", "observer_qa", "omnisearch", "omnisearch_config", "parquet_index", "proof_robot", "repo_headers", "shard_tools", "shmem_dedup", "shmem_optimize", "shmem_warm", "spec_to_proof", "spool", "spool_source", "tantivy_indexer", "task_manager", "test_tag_42", "tokenizer", "zombie_driver", "zos_a11y_gui", "zos_github_manager", "zos_noc_manager", "zos_plugin_generators"]
+roots = ["activity_profile", "aristotle_manager", "cid_index_lean", "dir_to_shmem", "eco_research", "emacs_search", "erdfa_publish", "forgecode", "forgecode_extras", "forge_plugin_tantivy", "git_tools", "harbor", "hive_driver", "index_to_shmem", "ipld_car_shmem_client", "ipld_car_shmem_server", "lean4_block_server", "lean4_cbor_bridge", "lean4_repl", "lean4_twin", "letta_ipld_memory", "monster_hecke", "monster_voa", "observer_qa", "omnisearch", "omnisearch_config", "parquet_index", "proof_robot", "repo_headers", "shard_tools", "shmem_dedup", "shmem_optimize", "shmem_warm", "spec_to_proof", "spool", "spool_source", "tantivy_indexer", "task_manager", "test_tag_42", "tokenizer", "zombie_driver", "zos_a11y_gui", "zos_github_manager", "zos_noc_manager", "zos_plugin_generators", "aristotle_tools"]
 
 [[lean_exe]]
 name = "proxy_report"

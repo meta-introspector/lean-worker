@@ -38,7 +38,7 @@ BUDGET=${4:-300}
 MAX_DEPTH=${MAX_DEPTH:-24}
 GOKUJO=${GOKUJO:-$HOME/projects/lean-worker/minimal/gokujo}
 
-FAILLOG="$CUTPARTS/failures.log"
+FAILLOG="${FAILLOG:-$CUTPARTS/failures.log}"   # override for parallel slices
 [ -s "$FAILLOG" ] || { echo "no failures in $FAILLOG — nothing to contain"; exit 0; }
 
 LEDGER="$PHASE2/ledger.jsonl"

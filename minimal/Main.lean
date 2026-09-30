@@ -31,13 +31,13 @@ import RequestProject.Protocol.Client
 import RequestProject.Protocol.Soundness
 import RequestProject.Protocol.Example
 
-import RequestProject.Proxy.Core
-import RequestProject.Proxy.Monitor
-import RequestProject.Proxy.Dashboard
-import RequestProject.Proxy.Concrete
-import RequestProject.Proxy.Interop
-import RequestProject.Proxy.Example
-import RequestProject.Proxy.Export
+import Proxy.Core
+import Proxy.Monitor
+import Proxy.Dashboard
+import Proxy.Concrete
+import Proxy.Interop
+import Proxy.Example
+import Proxy.Export
 
 open scoped BigOperators
 open scoped Real
