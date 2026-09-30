@@ -44,7 +44,13 @@ Use the p2p network to rewrite and check the apps themselves:
 - phase 1: a bone offer round-trips: offers.jsonl -> kant room -> agent task -> results.jsonl -> proved
 - phase 2: relay.mjs itself has bones in /mnt/data1/aristotle-merge/bones/ and a proved result
 
+## Done
+- 91f031c task created (component map + phases)
+- 9ac84b8 offers-to-kant.mjs — bone offers -> kant jobs room, verified live on :8787 (10 offers round-trip)
+
 ## Next
-- [ ] pick wire-up step 1: bone-worker -> kant `jobs` room emitter
-- [ ] control mesh room registry sync
+- [ ] proofs return path: results.jsonl -> kant `proofs:<project>` room (mirror of step 1)
+- [ ] control mesh room registry sync (:3318 /control/sync carries jobs/proofs room pointers)
 - [ ] arist-kant relay smoke test against CF worker twin
+- [ ] kant pass for bone-worker (rate limit: anonymous = 10 lines/10min)
+- [ ] phase 2: extract bones from relay.mjs/control.mjs/bone-worker/arist-kant themselves (self-apply)
