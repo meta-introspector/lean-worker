@@ -38,3 +38,5 @@ __pycache__/
 # Other generated files
 *.log
 *.tmp
+minimal/gokujo
+minimal/test
