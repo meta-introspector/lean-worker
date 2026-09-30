@@ -47,10 +47,14 @@ Use the p2p network to rewrite and check the apps themselves:
 ## Done
 - 91f031c task created (component map + phases)
 - 9ac84b8 offers-to-kant.mjs — bone offers -> kant jobs room, verified live on :8787 (10 offers round-trip)
+- da6c993 payload channel (put.mjs/get.mjs) — age-encrypted content over gist + ipfs backends, both round-trips verified, pointers live in kant room 'proofs'
 
 ## Next
 - [ ] proofs return path: results.jsonl -> kant `proofs:<project>` room (mirror of step 1)
 - [ ] control mesh room registry sync (:3318 /control/sync carries jobs/proofs room pointers)
 - [ ] arist-kant relay smoke test against CF worker twin
 - [ ] kant pass for bone-worker (rate limit: anonymous = 10 lines/10min)
+- [ ] cf backend: wrangler r2 object put/get (token at ~/.cloudflare, publisher pattern) — R2 free tier 10GB
+- [ ] s3 backend: aws free tier (needs sops credential)
+- [ ] iroh/bittorrent backend for large payloads (olean blobs)
 - [ ] phase 2: extract bones from relay.mjs/control.mjs/bone-worker/arist-kant themselves (self-apply)
