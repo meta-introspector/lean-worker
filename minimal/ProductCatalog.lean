@@ -173,6 +173,18 @@ def tool : List Product :=
     , category := "S7-Tool"
     , description := "Test suite runner"
     , dependencies := ["Gokujo"] }
+  , { name := "forgejo", path := "forgejo.lean"
+    , category := "S7-Tool"
+    , description := "Local git forge (127.0.0.1:3000) — tracker mirror + build commit-status sink"
+    , dependencies := [] }
+  , { name := "nora", path := "nora.lean"
+    , category := "S7-Tool"
+    , description := "Local artifact registry (127.0.0.1:4000) — cargo proxy + raw build artifact store"
+    , dependencies := [] }
+  , { name := "pipelight", path := "pipelight.lean"
+    , category := "S7-Tool"
+    , description := "Clean build service pipeline runner — gate/build/test/publish/status"
+    , dependencies := ["nora", "forgejo"] }
   ]
 
 /-- S8: Assembly — test and deployment products. -/
