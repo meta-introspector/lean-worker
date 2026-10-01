@@ -77,6 +77,10 @@ def tamahagane : List Product :=
     , category := "S1-Tamahagane"
     , description := "Command execution infrastructure"
     , dependencies := [] }
+  , { name := "FreebuffTwin", path := "FreebuffTwin.lean"
+    , category := "S1-Tamahagane"
+    , description := "Freebuff agent proof twin — Buffy identity, capabilities, constraints, platform matrix, Aleph Cloud origin (90 theorems, zero sorry)"
+    , dependencies := [] }
   ]
 
 /-- S2: Shita-kitae — specialized tools (folding/refinement). -/

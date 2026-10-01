@@ -89,6 +89,24 @@ The twin model proves:
 - **Cross-model consensus**: deployment telemetry, relay identity, and sponsorship all agree with self-model (Wave V.5)
 - **Execution verification**: eBPF kernel traces confirm the agent performs declared I/O operations
 
+## Freebuff Agent Twin
+
+`minimal/FreebuffTwin.lean` is the **Freebuff agent customized version** of the twin model: a complete formalization of **Buffy**, the coding agent behind [Freebuff](https://freebuff.com) (GLM 5.3 Flash engine), derived from `Twin.lean`.
+
+- **Origin**: Aleph Cloud — where it started (`lean-worker`, first commit 2026-09-17); the Aleph twin stays intact as the origin record
+- **Identity**: Buffy / Freebuff / GLM 5.3 Flash, coding agent
+- **Capabilities**: 15 tool surfaces (read_files, str_replace, write_file, run_terminal_command, code_search, glob, list_directory, write_todos, web_search, read_url, ask_user, suggest_followups, skill, gravity_index, render_ui), each mapped to its tool
+- **Constraints**: 8 enforced operating rules (no destructive commands without consent, no unrequested push/commit, verify before done, minimal changes, ask on decisions, never git as root, worktree per task)
+- **Supported deployment platforms (8)**: Nix, Ubuntu, systemd, system-manager, nginx, AWS, Oracle Cloud, Cloudflare Workers — proved as a duplicate-free total matrix
+- **Consensus**: the Freebuff client's model of the agent, the tracker's model of the workflow, and the origin record all agree with the self-model (`consistency_theorem`)
+
+**90 theorems, 0 sorry, 0 warnings** — import-free (core Lean 4 only), compiles in seconds with a bare `lean` binary and passes `gokujo check`:
+
+```bash
+cd minimal
+lean FreebuffTwin.lean
+```
+
 ## Verification
 
 Build and verify:

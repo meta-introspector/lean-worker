@@ -9,7 +9,7 @@ rev = "v4.28.0"
 
 [[lean_lib]]
 name = "RequestProject"
-roots = ["RequestProject.Agent", "RequestProject.APICapabilities", "RequestProject.CommandExecution", "RequestProject.CreditUsage", "RequestProject.ExecutionTrace", "RequestProject.ToolProvenance", "RequestProject.Twin", "RequestProject.Main", "RequestProject.ProxyReport"]
+roots = ["RequestProject.Agent", "RequestProject.APICapabilities", "RequestProject.CommandExecution", "RequestProject.CreditUsage", "RequestProject.ExecutionTrace", "RequestProject.ToolProvenance", "RequestProject.Twin", "RequestProject.FreebuffTwin", "RequestProject.Main", "RequestProject.ProxyReport"]
 
 [[lean_lib]]
 name = "Proxy"
