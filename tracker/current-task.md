@@ -1,12 +1,12 @@
 # Current Task — lean-worker
 
-- **Task:** p2p-proving-bootstrap
-- **Branch:** agent/p2p-proving-bootstrap
-- **Worktree:** worktrees/p2p-proving-bootstrap
+- **Task:** freebuff-twin
+- **Branch:** agent/freebuff-twin
+- **Worktree:** worktrees/freebuff-twin
 - **Status:** in_progress
-- **Updated:** 2026-09-30
+- **Updated:** 2026-10-01
 
 ## Description
-Wire kant rooms (transport) + control mesh (gossip) + bone offers (jobs) + gokujo (checker) + task-runner (agents) into a self-hosting p2p proving loop, then self-apply: use the network to rewrite and check the apps themselves until the proof engine lives in the browser
+Freebuff agent twin: formalize Buffy/Freebuff (GLM) identity, capabilities, constraints, supported-platform matrix (nix/ubuntu/systemd/system-manager/nginx/aws/oracle/cloudflare), origin Aleph Cloud — zero-sorry Lean 4 module
 
-Enter: cd worktrees/p2p-proving-bootstrap
+Enter: cd worktrees/freebuff-twin
