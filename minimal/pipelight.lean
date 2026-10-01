@@ -17,7 +17,9 @@ structure PipelightInterface where
 
 def pipelightInterface : PipelightInterface := {
   name := "pipelight",
-  version := "0.10.1",
+  -- The nix derivation is named pipelight-0.10.1 but the binary self-reports
+  -- "pipelight 0.1.0"; the model records the observable runtime fact.
+  version := "0.1.0",
   description := "Self-hosted CI/CD pipeline CLI (pipelight.dev) driving the tracker clean build service",
   capabilities := ["toml-pipelines", "git-hook-triggers", "step-logging"],
   commands := ["run", "system", "hooks", "status"]
@@ -27,7 +29,7 @@ theorem pipelight_name_correct :
   pipelightInterface.name = "pipelight" := rfl
 
 theorem pipelight_version_consistent :
-  pipelightInterface.version = "0.10.1" := rfl
+  pipelightInterface.version = "0.1.0" := rfl
 
 theorem pipelight_capabilities_nonempty :
   pipelightInterface.capabilities.length > 0 := by decide
