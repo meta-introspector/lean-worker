@@ -27,7 +27,18 @@ def aristotle_managerInterface : PluginInterface := {
   version := "0.1.0",
   description := "Aristotle API client — poll, download, build, split, merge, index Lean projects",
   capabilities := ["forgecode", "dotagents"],
-  commands := []
+  commands := [
+    "help", "version", "doctor", "scan", "sorry", "graph", "build", "axioms",
+    "check", "html", "tangle", "weave", "selfcheck", "cut", "selftest",
+    "bootstrap", "targets", "release", "bundle", "init",
+    -- Aristo system verbs
+    "poll", "download", "build", "split", "merge", "index", "import", "export",
+    "submit", "submit_proof", "retrieve", "verify", "validate", "archive", "sync",
+    "status", "health", "info", "config", "setup", "deploy", "monitor", "log",
+    -- Kant system verbs
+    "kant_poll", "kant_download", "kant_build", "kant_merge", "kant_split", "kant_sync",
+    "kant_verify", "kant_status", "kant_health", "kant_info", "kant_config"
+  ]
 }
 
 -- ============================================
@@ -49,7 +60,7 @@ theorem aristotle_manager_capabilities_nonempty :
 theorem aristotle_manager_commands_nonempty :
   aristotle_managerInterface.commands.length > 0 := by
   unfold aristotle_managerInterface
-  exFalso
+  norm_num [List.length]
 
 -- Theorem 4: The plugin provides core capability (is in agent's knowledge).
 theorem aristotle_manager_has_core_capability :
