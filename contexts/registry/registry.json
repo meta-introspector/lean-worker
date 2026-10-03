@@ -1,0 +1,110 @@
+{
+  "version": "1.0.0",
+  "description": "Lean Worker Registry - Maps repositories to their plugin interfaces for gokujo to fetch, load twins, and use",
+  "repos": [
+    {
+      "repo_name": "lean-worker",
+      "repo_path": "/mnt/data1/time-2026/09-september/18/lean-worker",
+      "git_commit": "da6c993",
+      "git_branch": "main",
+      "git_remote": "origin",
+      "description": "P2P proving loop core - agent bindings and gokujo CLI",
+      "interface_name": "lean_worker_plugin",
+      "interface_module": "RequestProject.PluginContexts.lean_worker_plugin",
+      "capabilities": ["p2p-proving", "gokujo-cli", "ipfs-wasm", "agent-bindings", "proof-loop"],
+      "commands": ["help", "scan", "build", "check", "graph", "cut", "selfcheck", "bootstrap", "targets", "release", "bundle", "init", "poll", "download", "verify", "sync"],
+      "tags": ["p2p", "proving", "core", "gokujo", "worker"],
+      "services": [
+        {"name": "gokujo-cli", "type": "cli", "binary": "gokujo", "path": "minimal/gokujo"},
+        {"name": "p2p-proving", "type": "p2p", "endpoint": "https://kant-zk-relay.jmikedupont2.workers.dev"}
+      ]
+    },
+    {
+      "repo_name": "pastebin",
+      "repo_path": "/mnt/data1/kant/pastebin",
+      "git_commit": "cc186b5",
+      "git_branch": "main",
+      "git_remote": "origin",
+      "description": "P2P WASM IPFS integration - buffy/p2p-wasm-ipfs-20261001",
+      "interface_name": "pastebin_plugin",
+      "interface_module": "RequestProject.PluginContexts.pastebin_plugin",
+      "capabilities": ["p2p-wasm", "ipfs", "WASM", "IPFS", "file-drop"],
+      "commands": ["poll", "download", "build", "verify", "sync", "cut", "bootstrap", "file-drop"],
+      "tags": ["wasm", "ipfs", "integration", "p2p"],
+      "services": [
+        {"name": "file-drop", "type": "web", "endpoint": "/aristo/file-drop/"},
+        {"name": "ipfs-wasm", "type": "wasm", "binary": "ipfs-wasm-client"}
+      ]
+    },
+    {
+      "repo_name": "pastebin-lean",
+      "repo_path": "/home/mdupont/projects/worktrees/buffy-p2p-wasm-20261001",
+      "git_commit": "cc186b5",
+      "git_branch": "main",
+      "git_remote": "origin",
+      "description": "Same P2P proving loop worktree - buffy-p2p-wasm-20261001",
+      "interface_name": "pastebin_lean_plugin",
+      "interface_module": "RequestProject.PluginContexts.pastebin_lean_plugin",
+      "capabilities": ["p2p-wasm", "ipfs", "WASM", "IPFS", "lean-worker-integration", "twin-binding"],
+      "commands": ["poll", "download", "build", "verify", "sync", "cut", "bootstrap", "integrate", "bind-twin"],
+      "tags": ["worktree", "integration", "lean", "twin"],
+      "services": [
+        {"name": "twin-binding", "type": "api", "endpoint": "/aristo/twin/"}
+      ]
+    },
+    {
+      "repo_name": "bone-proof-loop-close",
+      "repo_path": "/mnt/data1/time-2026/09-september/18/lean-worker/worktrees/bone-proof-loop-close",
+      "git_commit": "auto",
+      "git_branch": "main",
+      "git_remote": "origin",
+      "description": "Loop close agent for proof completion",
+      "interface_name": "bone_plugin",
+      "interface_module": "RequestProject.PluginContexts.bone_plugin",
+      "capabilities": ["proof-close", "agent-binding", "completion"],
+      "commands": ["close", "complete", "finalize", "close-loop"],
+      "tags": ["agent", "completion", "proof"],
+      "services": []
+    },
+    {
+      "repo_name": "buffy-p2p-knowledge",
+      "repo_path": "/mnt/data1/time-2026/09-september/18/lean-worker/worktrees/buffy-p2p-knowledge-20261001",
+      "git_commit": "auto",
+      "git_branch": "main",
+      "git_remote": "origin",
+      "description": "P2P knowledge base and proofs",
+      "interface_name": "knowledge_plugin",
+      "interface_module": "RequestProject.PluginContexts.knowledge_plugin",
+      "capabilities": ["knowledge-base", "proof-storage", "p2p-knowledge"],
+      "commands": ["store", "retrieve", "query", "sync", "search"],
+      "tags": ["knowledge", "p2p", "storage"],
+      "services": [
+        {"name": "knowledge-api", "type": "api", "endpoint": "/aristo/knowledge/"}
+      ]
+    },
+    {
+      "repo_name": "freebuff-twin",
+      "repo_path": "/mnt/data1/time-2026/09-september/18/lean-worker/worktrees/freebuff-twin",
+      "git_commit": "cf82b70",
+      "git_branch": "main",
+      "git_remote": "origin",
+      "description": "Freebuff twin with aristo manager plugin",
+      "interface_name": "freebuff_plugin",
+      "interface_module": "RequestProject.PluginContexts.freebuff_plugin",
+      "capabilities": ["twin-binding", "aristo-manager", "aristo-cli", "proof-submission"],
+      "commands": ["bind", "twin", "aristo-prove", "sync-twin", "submit-proof", "aristo-poll", "aristo-verify"],
+      "tags": ["twin", "aristo", "binding", "manager"],
+      "services": [
+        {"name": "aristotle-manager", "type": "api", "endpoint": "http://localhost:9876", "health": "/health"},
+        {"name": "aristo-api", "type": "api", "endpoint": "/aristo/api/"}
+      ]
+    }
+  ],
+  "gokujo_integration": {
+    "fetch_cmd": "gokujo cut --project {repo_name} -o {repo_name}_manifest.json",
+    "load_twin_cmd": "gokujo build --root {repo_path}/minimal",
+    "verify_cmd": "gokujo check --root {repo_path}/minimal",
+    "bootstrap_cmd": "gokujo bootstrap -o gokujo-{repo_name}",
+    "index_cmd": "gokujo cut --json {repo_path}/minimal > {repo_name}_index.json"
+  }
+}
