@@ -40,14 +40,19 @@ const CONFIG = {
   stateCache: new Map(),
 };
 
-// Import crypto utilities (Cloudflare Workers compatible)
+// Crypto shim. `globalThis.crypto` is the real WebCrypto in a Worker; this
+// wrapper only guards the algorithm name.
+//
+// It must reach the platform through globalThis, not through the binding
+// below. Naming this const `crypto` shadows the global inside this module,
+// so the previous `await crypto.subtle.digest(...)` resolved to *itself*
+// and recursed until the stack blew — a latent crash in any code path that
+// hashed anything.
 const crypto = {
-  // Simple SHA-256 implementation for Cloudflare Workers
   subtle: {
     digest: async (algorithm, data) => {
       if (algorithm !== "SHA-256") throw new Error("Only SHA-256 supported");
-      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-      return hashBuffer;
+      return globalThis.crypto.subtle.digest("SHA-256", data);
     }
   }
 };
@@ -85,6 +90,27 @@ class PeerState {
   }
 }
 
+// ── invite helpers ────────────────────────────────────────────────────────
+
+// Hex SHA-256 of a UTF-8 string, lower case. Uses globalThis.crypto on
+// purpose: the module-level `crypto` const above is the shim, and the shim
+// used to recurse into itself.
+async function sha256Hex(text) {
+  const bytes = new TextEncoder().encode(text);
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", bytes);
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+// Length-independent equality for two hex digests. These values are not secret
+// (a holder of the invite can recompute one), so this is about not
+// short-circuiting on the first differing character, not about secrecy.
+function timingSafeEqual(a, b) {
+  if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 class RoomState {
   constructor() {
     this.lines = [];
@@ -94,30 +120,55 @@ class RoomState {
     this.lastTouch = Date.now();
     this.waiters = new Set(); // For long-polling
     this.inviteRequired = true; // Room requires invite to join
+    // SHA-256 of the room's invite, set by whichever peer joins first.
+    // null means "this room has no invite yet" — see verifyInvite.
+    this.inviteHash = null;
   }
   
   get cursor() {
     return this.base + this.lines.length;
   }
   
-  // Verify invite token for a room
-  // In a real implementation, this would validate the invite cryptographically
-  // For now, we'll use a simplified version where the invite token 
-  // must hash to match the room identifier
-  verifyInvite(inviteToken) {
+  // Verify an invite token for a room.
+  //
+  // The relay names a room from the URL path and never learns the secret that
+  // produced that name, so this cannot be a witness check the way
+  // kant-net.mjs does it. What it CAN do is make the invite a shared
+  // capability: the first peer to join sets the room's invite hash, and every
+  // later peer must present an invite hashing to the same value.
+  //
+  // What this guarantees: a peer that does not hold the room's invite cannot
+  // join or post. That is what was missing — the previous check accepted any
+  // string of length >= 8.
+  //
+  // What this does NOT guarantee, stated plainly so nobody upgrades the claim:
+  //   * it is trust-on-first-use. Whoever reaches an empty room first sets it.
+  //     An attacker who can create the room first owns it.
+  //   * it is a shared room secret, not an identity. Every holder of the
+  //     invite has identical rights; there are no tiers and no revocation.
+  //   * it does not bind a peer id to an invite. A leaked invite is a leaked
+  //     key, and rotating it invalidates every current holder at once.
+  //
+  // A per-peer tier system needs a real keypair and signature check, which is
+  // a design decision, not a patch. Until then the binding is
+  // INVITE_REQUIRED and this is what enforces it.
+  async verifyInvite(inviteToken) {
     if (!this.inviteRequired) return true;
-    if (!inviteToken) return false;
-    
-    // Simplified invite verification: 
-    // In reality, this would check that the invite token 
-    // corresponds to the room secret via witness function
-    // For demo, we accept any non-empty invite as valid
-    return inviteToken.length >= 8;
+    if (!inviteToken || typeof inviteToken !== "string" || !inviteToken.length) return false;
+
+    const hash = await sha256Hex(inviteToken);
+    if (this.inviteHash === null) {
+      this.inviteHash = hash;   // first joiner defines this room's invite
+      return true;
+    }
+    return timingSafeEqual(hash, this.inviteHash);
   }
   
   // Add peer to room with invite verification
-  addPeer(peerId, inviteToken) {
-    if (!this.verifyInvite(inviteToken)) {
+  async addPeer(peerId, inviteToken) {
+    // verifyInvite is async (SHA-256 via crypto.subtle), so this is too —
+    // every caller must await it. See the call sites in handleRoomRequest.
+    if (!(await this.verifyInvite(inviteToken))) {
       throw new Error("Invalid or missing invite");
     }
     
@@ -294,7 +345,8 @@ class OTCDeskHandler {
     
     // WebSocket upgrade handling with invite verification
     if (request.headers.get('Upgrade') === 'websocket') {
-      return this.handleWebSocketUpgrade(request, cf, headers);
+      // async since addPeer/verifyInvite became async (SHA-256 via subtle)
+      return await this.handleWebSocketUpgrade(request, cf, headers);
     }
     
     // Static file serving (if any)
@@ -425,7 +477,7 @@ class OTCDeskHandler {
         const peer = this.getOrCreatePeer(peerId);
         
         // Add peer to room with invite verification
-        room.addPeer(peerId, inviteToken);
+        await room.addPeer(peerId, inviteToken);
         
         // Post lines with gas tracking
         room.post(lines, peerId);
@@ -474,9 +526,9 @@ class OTCDeskHandler {
       
       // Verify peer has access to room (invite check)
       // For GET, we're less strict but still require some form of auth
-      if (!room.peers.has(peerId) && !room.verifyInvite(inviteToken)) {
+      if (!room.peers.has(peerId) && !(await room.verifyInvite(inviteToken))) {
         // Allow reading if invite is provided and valid, or if room doesn't require invite
-        if (!room.verifyInvite(inviteToken)) {
+        if (!(await room.verifyInvite(inviteToken))) {
           return new Response(JSON.stringify({
             ok: false,
             error: "invite required",
@@ -489,7 +541,7 @@ class OTCDeskHandler {
           });
         }
         // If invite is valid, implicitly join the room for read access
-        room.addPeer(peerId, inviteToken);
+        await room.addPeer(peerId, inviteToken);
       }
       
       if (wait > 0 && room.lines.length === 0) {
@@ -526,7 +578,7 @@ class OTCDeskHandler {
     });
   }
   
-  handleWebSocketUpgrade(request, cf, headers) {
+  async handleWebSocketUpgrade(request, cf, headers) {
     const url = new URL(request.url);
     const pathname = url.pathname;
     const roomName = pathname.startsWith('/ws/') ? 
@@ -552,7 +604,7 @@ class OTCDeskHandler {
     
     try {
       // Verify peer can join room with invite
-      const peer = room.addPeer(peerId, inviteToken);
+      const peer = await room.addPeer(peerId, inviteToken);
       
       // Create a WebSocket pair for connection to local relay
       const { 0: client, 1: local } = new WebSocketPair();

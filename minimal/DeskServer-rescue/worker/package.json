@@ -5,6 +5,6 @@
   "type": "module",
   "scripts": {
     "build": "cp worker.js dist/worker.js",
-    "test": "echo 'Tests passed'"
+    "test": "node worker-invite-test.mjs"
   }
 }
