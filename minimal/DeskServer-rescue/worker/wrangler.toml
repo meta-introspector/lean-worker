@@ -1,0 +1,14 @@
+name = "otc-desk-relay"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+LOCAL_RELAY_URL = "http://127.0.0.1:8788"
+GAS_LIMIT_PER_PEER_PER_HOUR = "1000000"
+INVITE_REQUIRED = "true"
+
+# Cloudflare bindings
+[env.production.vars]
+LOCAL_RELAY_URL = "http://127.0.0.1:8788"
+GAS_LIMIT_PER_PEER_PER_HOUR = "1000000"
+INVITE_REQUIRED = "true"
