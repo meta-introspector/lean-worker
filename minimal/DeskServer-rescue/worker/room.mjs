@@ -3,8 +3,21 @@
 // Split out of the prototype worker so a Durable Object can own one RoomState
 // per room. Everything here is the code that was already reviewed in
 // worker-invite-test.mjs; the change is that it is now reachable from a module
-// with durable lifetime rather than a Map rebuilt per request, and that it can
-// be written to Durable Object storage so state survives instance eviction.
+// that lives longer than a request, rather than a Map rebuilt per request.
+//
+// State is in memory, deliberately. The relay is a dumb append-only mailbox:
+// it holds a room while the room is happening, forgets it on the TTL, and
+// keeps no archive. That is the same contract `server/relay.mjs` has always
+// had (`this.map = new Map()`), and the same one `skills/kant-cli/SKILL.md`
+// describes: the room is public and append-only, and *consumers* record it
+// into their own sqlite and mesh-sync from there.
+//
+// So nothing here is written to Durable Object storage. A DO instance's memory
+// is lost if the instance is evicted, and a lost room is a room whose history
+// now lives only in the peers that synced it. If you need the relay to be an
+// archive rather than a mailbox, that is a different design and it should be
+// a deliberate one — an earlier version of this file did persist to DO storage
+// and that commit (`b288abd`) reversed it.
 
 // Defaults. A Worker has no `process`, and wrangler vars arrive on `env` inside
 // fetch rather than at module scope, so these literals are the fallback and
@@ -110,21 +123,9 @@ class PeerState {
     this.messageCount++;
     this.lastMessageAt = now;
   }
-
-  serialize() {
-    return {
-      peerId: this.peerId,
-      windowStart: this.windowStart,
-      gasUsed: this.gasUsed,
-      messageCount: this.messageCount,
-      lastMessageAt: this.lastMessageAt,
-    };
-  }
 }
 
 // ── room ──────────────────────────────────────────────────────────────────
-
-const STORAGE_KEY = "room";
 
 class RoomState {
   constructor(config = CONFIG) {
@@ -134,73 +135,12 @@ class RoomState {
     this.inviteHash = null; // SHA-256 of the room's invite, null until first join
     this.inviteRequired = config.inviteRequired;
     this.peers = new Map();    // peerId -> PeerState
-    this.waiters = new Set();  // long-poll resumers, in-memory only
+    this.waiters = new Set();  // long-poll resumers
     this.lastTouch = Date.now();
-    this.storage = null;       // Durable Object storage, when attached
-    this.dirty = false;
   }
 
   get cursor() {
     return this.base + this.lines.length;
-  }
-
-  // ── persistence ────────────────────────────────────────────────────────
-  //
-  // The prototype's defining bug was state that existed only as long as the
-  // request did. A Durable Object instance is also in-memory, and is not
-  // guaranteed to stay alive forever: once it is evicted, its memory is gone.
-  // So the durable part of the room is written to DO storage. Waiters and
-  // sockets stay in memory, because they belong to requests that are gone the
-  // moment the instance is evicted anyway.
-
-  attachStorage(storage) {
-    this.storage = storage;
-  }
-
-  async load() {
-    if (!this.storage) return this;
-    const saved = await this.storage.get(STORAGE_KEY);
-    if (!saved) return this;
-    this.lines = Array.isArray(saved.lines) ? saved.lines : [];
-    this.base = Number(saved.base) || 0;
-    this.inviteHash = typeof saved.inviteHash === "string" ? saved.inviteHash : null;
-    if (typeof saved.inviteRequired === "boolean") this.inviteRequired = saved.inviteRequired;
-    this.lastTouch = Number(saved.lastTouch) || Date.now();
-    for (const peer of saved.peers ?? []) {
-      if (!peer || typeof peer.peerId !== "string") continue;
-      const state = new PeerState(peer.peerId, null, this.config);
-      state.windowStart = Number(peer.windowStart) || Date.now();
-      state.gasUsed = Number(peer.gasUsed) || 0;
-      state.messageCount = Number(peer.messageCount) || 0;
-      state.lastMessageAt = Number(peer.lastMessageAt) || 0;
-      this.peers.set(state.peerId, state);
-    }
-    return this;
-  }
-
-  serialize() {
-    return {
-      lines: this.lines,
-      base: this.base,
-      inviteHash: this.inviteHash,
-      inviteRequired: this.inviteRequired,
-      lastTouch: this.lastTouch,
-      peers: [...this.peers.values()].map((p) => p.serialize()),
-    };
-  }
-
-  async save() {
-    if (!this.storage) return;
-    await this.storage.put(STORAGE_KEY, this.serialize());
-  }
-
-  // Run `fn` and persist whatever it changed. Every mutation to the durable
-  // part of a room goes through here, so no path can change state without
-  // writing it down.
-  async commit(fn) {
-    const result = await fn();
-    await this.save();
-    return result;
   }
 
   // ── invite ─────────────────────────────────────────────────────────────
@@ -320,4 +260,4 @@ class RoomState {
   }
 }
 
-export { CONFIG, PeerState, RoomState, STORAGE_KEY, sha256Hex, timingSafeEqual };
+export { CONFIG, PeerState, RoomState, sha256Hex, timingSafeEqual };

@@ -1,12 +1,15 @@
-// PB-22 / durability regression: the deployed worker had no Durable Object, so
-// it rebuilt a Map per request and every read came back empty. Run with:
+// PB-22 regression: the deployed worker had no Durable Object, so it rebuilt a
+// Map per request and every read came back empty. Run with:
 //   node worker-room-test.mjs
 //
-// These drive the real `Room` Durable Object class against a fake DO binding
-// and fake storage, so they cover the code path Cloudflare runs: router →
-// idFromName → DO → RoomState → storage. The assertions are the ones the
-// prototype failed live: two posts to one room must advance the cursor, and a
-// read must return both lines.
+// These drive the real `Room` Durable Object class against a fake DO binding,
+// so they cover the code path Cloudflare runs: router → idFromName → DO →
+// RoomState. The assertions are the ones the prototype failed live: two posts
+// to one room must advance the cursor, and a read must return both lines.
+//
+// The room is in memory on purpose — the relay is a mailbox, not an archive.
+// One test below pins that down so it cannot drift back into claiming
+// durability it does not have.
 
 import assert from "node:assert/strict";
 
@@ -22,21 +25,7 @@ const t = async (name, fn) => {
 
 // ── a Durable Object, badly faked but faithfully ───────────────────────────
 
-class FakeStorage {
-  constructor() { this.map = new Map(); }
-  async get(k) { return this.map.get(k); }
-  async put(k, v) { this.map.set(k, structuredClone(v)); }
-}
-
-function fakeInstance(env) {
-  const storage = new FakeStorage();
-  const state = {
-    storage,
-    // No real concurrency here, so resolving immediately is a faithful stand-in.
-    blockConcurrencyWhile: (fn) => fn(),
-  };
-  return { instance: new Room(state, env), storage };
-}
+const fakeInstance = (env) => new Room({ storage: null }, env);
 
 let names = 0;
 const ids = new Map();
@@ -78,7 +67,7 @@ const get = (room, { invite, peer, query = "" } = {}) =>
 console.log("room state survives between requests");
 
 await t("two posts to one room advance the cursor", async () => {
-  const { instance } = fakeInstance(env);
+  const instance = fakeInstance(env);
   const first = await (await instance.fetch(post("cursor-room", "hello", { invite: "correct-horse", peer: "p1" }))).json();
   const second = await (await instance.fetch(post("cursor-room", "again", { invite: "correct-horse", peer: "p1" }))).json();
   assert.equal(first.cursor, 1, "first post must be cursor 1");
@@ -86,7 +75,7 @@ await t("two posts to one room advance the cursor", async () => {
 });
 
 await t("a read returns what was posted", async () => {
-  const { instance } = fakeInstance(env);
+  const instance = fakeInstance(env);
   await instance.fetch(post("read-room", "alpha", { invite: "correct-horse", peer: "p1" }));
   await instance.fetch(post("read-room", "beta", { invite: "correct-horse", peer: "p1" }));
   const body = await (await instance.fetch(get("read-room", { invite: "correct-horse", peer: "p1" }))).json();
@@ -95,7 +84,7 @@ await t("a read returns what was posted", async () => {
 });
 
 await t("a read from cursor 1 returns only the tail", async () => {
-  const { instance } = fakeInstance(env);
+  const instance = fakeInstance(env);
   await instance.fetch(post("tail-room", "alpha", { invite: "correct-horse", peer: "p1" }));
   await instance.fetch(post("tail-room", "beta", { invite: "correct-horse", peer: "p1" }));
   const body = await (await instance.fetch(get("tail-room", { invite: "correct-horse", peer: "p1", query: "&cursor=1" }))).json();
@@ -104,7 +93,7 @@ await t("a read from cursor 1 returns only the tail", async () => {
 });
 
 await t("a peer not yet in the room must present the invite to read", async () => {
-  const { instance } = fakeInstance(env);
+  const instance = fakeInstance(env);
   await instance.fetch(post("guard-room", "alpha", { invite: "correct-horse", peer: "p1" }));
   const denied = await instance.fetch(get("guard-room", { peer: "stranger" }));
   assert.equal(denied.status, 403, "a reader with no invite must be refused");
@@ -114,41 +103,36 @@ await t("a peer not yet in the room must present the invite to read", async () =
   assert.deepEqual((await allowed.json()).lines, ["alpha"]);
 });
 
-await t("state is written to storage, not just to memory", async () => {
-  const { instance, storage } = fakeInstance(env);
-  await instance.fetch(post("durable-room", "alpha", { invite: "correct-horse", peer: "p1" }));
-  assert.ok(storage.map.size > 0, "nothing was persisted — an eviction would drop the room");
+await t("the relay keeps no archive: a fresh instance starts empty", async () => {
+  // Pinned deliberately. The relay is a mailbox, not an archive — it holds a
+  // room while the room is happening and forgets it on the TTL, exactly like
+  // server/relay.mjs. Nothing is written to DO storage, so a fresh instance
+  // (which is what an eviction produces) sees an empty room.
+  //
+  // The consequence is real and is the reason this assertion exists: history
+  // lives only in the peers that synced it out. If someone later wants the
+  // relay to be durable, this test is the thing that should fail, deliberately,
+  // rather than the change landing unnoticed.
+  const first = fakeInstance(env);
+  await first.fetch(post("ephemeral-room", "alpha", { invite: "correct-horse", peer: "p1" }));
+
+  const revived = fakeInstance(env);
+  const body = await (await revived.fetch(get("ephemeral-room", { invite: "correct-horse", peer: "p1" }))).json();
+  assert.deepEqual(body.lines, [], "the relay persisted something; it is supposed to be a mailbox");
+  assert.equal(body.cursor, 0);
 });
 
-await t("a room reloaded from storage keeps its lines and invite", async () => {
-  const first = fakeInstance(env);
-  await first.instance.fetch(post("reload-room", "alpha", { invite: "correct-horse", peer: "p1" }));
-  await first.instance.fetch(post("reload-room", "beta", { invite: "correct-horse", peer: "p1" }));
-
-  // Same storage, brand-new instance: this is what an eviction looks like.
-  const revived = {
-    instance: new Room({ storage: first.storage, blockConcurrencyWhile: (fn) => fn() }, env),
-  };
-  const body = await (await revived.instance.fetch(get("reload-room", { invite: "correct-horse", peer: "p1" }))).json();
-  assert.deepEqual(body.lines, ["alpha", "beta"], "lines did not survive reload");
-  assert.equal(body.cursor, 2);
-
-  const wrong = await revived.instance.fetch(post("reload-room", "intruder", { invite: "bbbbbbbb", peer: "p2" }));
-  assert.equal(wrong.status, 403, "the room's invite must survive reload too");
-});
-
-await t("gas used by a peer survives reload", async () => {
-  const first = fakeInstance(env);
-  await first.instance.fetch(post("gas-room", "alpha", { invite: "correct-horse", peer: "p1" }));
-  const revived = { instance: new Room({ storage: first.storage, blockConcurrencyWhile: (fn) => fn() }, env) };
-  await revived.instance.fetch(post("gas-room", "beta", { invite: "correct-horse", peer: "p1" }));
-  const body = await (await revived.instance.fetch(post("gas-room", "gamma", { invite: "correct-horse", peer: "p1" }))).json();
-  assert.ok(body.gasUsed > 2000, `expected three messages' worth of gas, got ${body.gasUsed}`);
+await t("gas is accounted per peer within an instance", async () => {
+  const instance = fakeInstance(env);
+  await instance.fetch(post("gas-room", "alpha", { invite: "correct-horse", peer: "p1" }));
+  const second = await (await instance.fetch(post("gas-room", "beta", { invite: "correct-horse", peer: "p1" }))).json();
+  const third = await (await instance.fetch(post("gas-room", "gamma", { invite: "correct-horse", peer: "p1" }))).json();
+  assert.ok(second.gasUsed > 1000, `expected gas to accumulate, got ${second.gasUsed}`);
+  assert.ok(third.gasUsed > second.gasUsed, "gas did not accumulate across posts");
 });
 
 await t("the gas limit is enforced and reported", async () => {
-  const tight = { ...env, GAS_LIMIT_PER_PEER_PER_HOUR: "5000" };
-  const { instance } = fakeInstance(tight);
+  const instance = fakeInstance({ ...env, GAS_LIMIT_PER_PEER_PER_HOUR: "5000" });
   await instance.fetch(post("thin-room", "x".repeat(4000), { invite: "correct-horse", peer: "p1" }));
   const res = await instance.fetch(post("thin-room", "y".repeat(4000), { invite: "correct-horse", peer: "p1" }));
   assert.equal(res.status, 429);
@@ -156,7 +140,7 @@ await t("the gas limit is enforced and reported", async () => {
 });
 
 await t("a rejected post does not join the room or advance the cursor", async () => {
-  const { instance } = fakeInstance(env);
+  const instance = fakeInstance(env);
   await instance.fetch(post("reject-room", "hello", { invite: "correct-horse", peer: "p1" }));
   const res = await instance.fetch(post("reject-room", "intruder", { invite: "bbbbbbbb", peer: "p2" }));
   assert.equal(res.status, 403);
@@ -165,13 +149,13 @@ await t("a rejected post does not join the room or advance the cursor", async ()
 });
 
 await t("an over-long line is refused with 413", async () => {
-  const { instance } = fakeInstance(fakeEnvWith("MAX_LINE", "64"));
+  const instance = fakeInstance({ ...env, MAX_LINE: "64" });
   const res = await instance.fetch(post("long-room", "z".repeat(65), { invite: "correct-horse", peer: "p1" }));
   assert.equal(res.status, 413);
 });
 
-await t("POST /health style no-room request is refused, not silently accepted", async () => {
-  const { instance } = fakeInstance(env);
+await t("POST with no room is refused, not silently accepted", async () => {
+  const instance = fakeInstance(env);
   const res = await instance.fetch(new Request("https://room.internal/", { method: "POST", body: "x" }));
   assert.equal(res.status, 400);
 });
@@ -183,7 +167,7 @@ console.log("invite enforcement over HTTP");
 // The old live proof of the bypass: posts 1, 2, 3 with invites
 // aaaaaaaa / bbbbbbbb / aaaaaaaa all returned ok:true. Two must now.
 await t("a wrong invite is 403 and the right one still works", async () => {
-  const { instance } = fakeInstance(env);
+  const instance = fakeInstance(env);
   const first = await instance.fetch(post("invite-room", "one", { invite: "aaaaaaaa", peer: "p1" }));
   assert.equal(first.status, 200);
   const wrong = await instance.fetch(post("invite-room", "intruder", { invite: "bbbbbbbb", peer: "p2" }));
@@ -197,7 +181,7 @@ await t("an empty room is claimable by whoever arrives first", async () => {
   // Documented trade-off, asserted so it cannot be quietly changed later:
   // the invite is trust-on-first-use. A room name that an attacker can guess
   // and a room they reach first is a room they own.
-  const { instance } = fakeInstance(env);
+  const instance = fakeInstance(env);
   const claimed = await instance.fetch(post("claim-room", "mine now", { invite: "attacker-pick", peer: "p1" }));
   assert.equal(claimed.status, 200);
   const realOwner = await instance.fetch(post("claim-room", "hello", { invite: "the-real-invite", peer: "p2" }));
@@ -205,7 +189,7 @@ await t("an empty room is claimable by whoever arrives first", async () => {
 });
 
 await t("a missing invite is 403", async () => {
-  const { instance } = fakeInstance(env);
+  const instance = fakeInstance(env);
   const res = await instance.fetch(post("noinvite-room", "hello", { peer: "p1" }));
   assert.equal(res.status, 403);
 });
@@ -216,6 +200,7 @@ await t("the router's /health does not need a room", async () => {
   const body = await res.json();
   assert.equal(res.status, 200);
   assert.equal(body.ok, true);
+  assert.equal(body.durable, false, "health must not imply the relay keeps an archive");
   assert.equal(body.features.inviteOnly, true);
   assert.equal(body.features.gasLimitPerPeerPerHour, 1000000);
   assert.equal(body.features.maxLines, 4096);
@@ -276,10 +261,6 @@ await t("the router 404s an unknown path", async () => {
   const res = await router.fetch(new Request("https://desk.example/nope"), env);
   assert.equal(res.status, 404);
 });
-
-function fakeEnvWith(key, value) {
-  return { ...env, [key]: value };
-}
 
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

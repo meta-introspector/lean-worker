@@ -214,9 +214,26 @@ two posts to one room both answered `cursor: 1`, and a read returned
 against.
 
 State now lives in a **Durable Object per room** (`env.ROOMS.idFromName`),
-the same pattern the sibling `kant-zk-relay-wasm` worker already used, and
-the durable part of each room is written to DO storage so it survives
-instance eviction.
+the same pattern the sibling `kant-zk-relay-wasm` worker already used. The
+room is held **in memory**, deliberately: the relay is a mailbox, not an
+archive. It keeps a room while the room is happening, forgets it on the TTL,
+and writes nothing to DO storage — the same contract `server/relay.mjs` has
+always had (`this.map = new Map()`).
+
+History is the consumers' business, which is the pattern
+`skills/kant-cli/SKILL.md` already describes for fleet builds: "any sink can
+record builds into sqlite and mesh-sync them." Peers sync lines out of the
+room into their own sqlite. See `server/room-store.mjs` in the pastebin repo
+for the peer-side replica.
+
+**The trade, stated plainly:** because the relay keeps no archive, an evicted
+DO instance loses that room and the only remaining copies are the peers that
+synced it. `b288abd` had persisted rooms to DO storage; that was reverted
+because it contradicts the mailbox model, not because it was wrong about
+durable objects. If the relay should be an archive after all, that is a
+deliberate design change and `worker-room-test.mjs` has a test
+(`the relay keeps no archive: a fresh instance starts empty`) that is written
+to fail when that happens, so the change cannot land unnoticed.
 
 Two more bugs were found while testing the rewrite, both of the same kind —
 something claimed to work while silently not doing it:
@@ -236,8 +253,7 @@ something claimed to work while silently not doing it:
 ### Deployed
 
 The Durable Object relay is live at
-`https://otc-desk-relay-v2.jmikedupont2.workers.dev` (version
-`f757ceb8-8069-42fd-881f-3767897702a4`), with
+`https://otc-desk-relay-v2.jmikedupont2.workers.dev`, with
 `15 passed, 0 failed` from `worker/live-pb22-test.sh` against it — including
 the exact sequence the prototype passed and should not have: posts with
 invites `aaaaaaaa` / `bbbbbbbb` / `aaaaaaaa` now give 200 / **403** / 200 with
@@ -279,8 +295,9 @@ So nothing downstream of the sops layer has ever run.
 - The Durable Object relay implements `/room/{room}` and `/health`. The
   `/desk/*` quote/ticket/escrow surface and the WebSocket endpoint exist only
   in the local `desk-relay.mjs` and have **not** been ported to the worker.
-- Room state is in DO storage, not a durable log. It survives eviction, but
-  there is no history beyond `MAX_LINES` and nothing is replicated.
+- Room state is in memory in the DO. There is no history beyond `MAX_LINES`,
+  nothing is replicated, and an eviction loses the room. Peers must sync out
+  what they need — the relay is not a backup.
 - The invite check is trust-on-first-use and a shared secret, not per-peer
   identity. See defect 1.
 - The escrow and KB endpoints have no persistence or backing store — they read

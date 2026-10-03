@@ -16,11 +16,11 @@
 // by room name via idFromName, so every peer of a room reaches the same
 // instance and the same RoomState.
 //
-// A DO instance is itself in-memory and can be evicted, so the durable part of
-// each room is written to DO storage as well. Rooms are discussion logs with a
-// TTL rather than permanent records, and the local relay also keeps them in
-// memory — but in-memory-behind-a-DO that nobody ever persists is the same
-// claim-over-nothing pattern this rewrite exists to remove.
+// A DO instance is also in memory and can be evicted, and this room is NOT
+// written back to DO storage. The relay is a mailbox, not an archive: it holds
+// a room while the room is happening and forgets it on the TTL, exactly like
+// `server/relay.mjs` has always done. History is the consumers' business —
+// they sync lines out of the room into their own sqlite and mesh from there.
 
 import { RoomState, configFromEnv } from "./room.mjs";
 
@@ -31,20 +31,13 @@ export class Room {
     this.state = state;
     this.env = env;
     this.config = configFromEnv(env);
-    this.room = null;
-    // DO storage must not be read before the constructor's writes are done, and
-    // two concurrent requests must not both build the room. One restoration,
-    // awaited by every request that arrives before it finishes.
-    this.ready = state.blockConcurrencyWhile(async () => {
-      const room = new RoomState(this.config);
-      room.attachStorage(state.storage);
-      await room.load();
-      this.room = room;
-    });
+    // idFromName is deterministic on the room name, so every request routed to
+    // this instance gets the same RoomState. That is the whole fix: the
+    // prototype rebuilt an empty one per request.
+    this.room = new RoomState(this.config);
   }
 
   async fetch(request) {
-    await this.ready;
     const room = this.room;
 
     const url = new URL(request.url);
@@ -80,21 +73,16 @@ export class Room {
 
         // addPeer awaits verifyInvite, so a wrong invite throws here and is
         // reported as 403 below. This is the check the bindings claim.
-        // Both the join and the post are wrapped in one commit, so a rejected
-        // post cannot leave a half-written room behind.
-        const result = await room.commit(async () => {
-          await room.addPeer(peerId, inviteToken);
-          room.post(lines, peerId);
-          return {
-            ok: true,
-            cursor: room.cursor,
-            accepted: lines.length,
-            peerId,
-            gasUsed: room.peers.get(peerId)?.gasUsed ?? 0,
-            gasLimit: this.config.gasLimitPerPeerPerHour,
-          };
+        await room.addPeer(peerId, inviteToken);
+        room.post(lines, peerId);
+        return json({
+          ok: true,
+          cursor: room.cursor,
+          accepted: lines.length,
+          peerId,
+          gasUsed: room.peers.get(peerId)?.gasUsed ?? 0,
+          gasLimit: this.config.gasLimitPerPeerPerHour,
         });
-        return json(result);
       }
 
       if (request.method === "GET") {
@@ -108,7 +96,7 @@ export class Room {
           if (!(await room.verifyInvite(inviteToken))) {
             return json({ ok: false, error: "invite required", type: "invite_invalid" }, 403);
           }
-          await room.commit(() => room.addPeer(peerId, inviteToken));
+          await room.addPeer(peerId, inviteToken);
         }
 
         let out = room.fetch(cursor);
@@ -154,7 +142,9 @@ export default {
         name: "otc-desk-relay",
         version: "2.0.0",
         platform: "cloudflare",
-        state: "durable-object per room, persisted to DO storage",
+        state: "durable-object per room, in memory, no archive",
+        durable: false,
+        archive: "consumers sync lines into their own sqlite",
         features: {
           inviteOnly: config.inviteRequired,
           inviteEnforced: true,
