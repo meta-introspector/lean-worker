@@ -4,18 +4,20 @@
 // These are the tests the original package.json could not run — its "test"
 // script was `echo 'Tests passed'`, which cannot fail.
 //
-// worker.js is imported directly rather than sliced out of the source: it
-// already exports RoomState, and slicing a class out of a module by string
-// index silently double-declares when a boundary moves. The only globals it
-// needs beyond node's are `addEventListener` (a Cloudflare runtime hook) and
-// `crypto.subtle` (present on node 18+, stubbed just in case).
+// The state module is imported directly rather than sliced out of the source:
+// slicing a class out of a module by string index silently double-declares
+// when a boundary moves. The only globals it needs beyond node's are
+// `addEventListener` (a Cloudflare runtime hook) and `crypto.subtle` (present
+// on node 18+, stubbed just in case).
 
 import assert from "node:assert/strict";
 
 if (!globalThis.crypto?.subtle) globalThis.crypto = (await import("node:crypto")).webcrypto;
 globalThis.addEventListener ??= () => {};
 
-const { RoomState } = await import("./worker.js");
+// RoomState now lives in room.mjs so the Durable Object can own one per room.
+// worker.js is the router plus the DO class and no longer exports it.
+const { RoomState } = await import("./room.mjs");
 
 let pass = 0, fail = 0;
 const t = async (name, fn) => {

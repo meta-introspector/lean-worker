@@ -1,10 +1,9 @@
 {
-  "name": "otc-desk-relay-worker",
-  "version": "1.0.0",
+  "name": "otc-desk-relay-v2",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "cp worker.js dist/worker.js",
-    "test": "node worker-invite-test.mjs"
+    "test": "node worker-invite-test.mjs && node worker-room-test.mjs"
   }
 }
