@@ -13,11 +13,11 @@ roots = ["Agent", "APICapabilities", "CommandExecution", "CreditUsage", "Executi
 
 [[lean_lib]]
 name = "Minimal.Proxy"
-roots = ["Concrete", "Core", "Dashboard", "Example", "Export", "Interop", "Monitor"]
+roots = ["Proxy.Concrete", "Proxy.Core", "Proxy.Dashboard", "Proxy.Example", "Proxy.Export", "Proxy.Interop", "Proxy.Monitor"]
 
 [[lean_lib]]
 name = "Minimal.Protocol"
-roots = ["Client", "Core", "Example", "Server", "Soundness"]
+roots = ["Protocol.Client", "Protocol.Core", "Protocol.Example", "Protocol.Server", "Protocol.Soundness"]
 
 [[lean_lib]]
 name = "Minimal.PluginContexts"
