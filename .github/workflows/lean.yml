@@ -36,7 +36,7 @@ jobs:
           nix profile install nixpkgs#lake
 
       - name: Cache Lake build artifacts
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             minimal/.lake
@@ -51,7 +51,7 @@ jobs:
           cd minimal
           # Temporary lakefile without mathlib for fast iteration
           cp lakefile.toml lakefile.toml.bak
-          cat > lakefile.toml << 'EOF'
+          cat > lakefile.toml <<- 'EOF'
           name = "RequestProject"
           version = "0.1.0"
           defaultTargets = ["RequestProject"]
@@ -105,7 +105,7 @@ jobs:
 
       - name: Upload build artifacts
         if: matrix.stage == 'full'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: lean-worker-${{ runner.os }}
           path: |
@@ -168,7 +168,7 @@ jobs:
           # Step 1: Build without mathlib
           echo "Stage 1: Building without mathlib..."
           cp lakefile.toml lakefile-with-mathlib.toml
-          cat > lakefile.toml << 'EOF'
+          cat > lakefile.toml <<- 'EOF'
           name = "RequestProject"
           version = "0.1.0"
           defaultTargets = ["RequestProject"]
