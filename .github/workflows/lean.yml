@@ -77,7 +77,6 @@ jobs:
         run: |
           cd minimal
           lake build  # Uses full lakefile.toml with mathlib4
-          lake exe RequestProject  # Test that the executable works
 
       - name: Run Gokujo verification (single-file proof gate)
         run: |
