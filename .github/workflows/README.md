@@ -14,7 +14,7 @@ This project **only uses custom GitHub Actions from the meta-introspector organi
 #### deploy.yml
 - ✅ `meta-introspector/checkout@v4` - Custom org checkout action
 - ✅ `meta-introspector/lean-action@main` - Custom Lean/Python setup action
-- ⚠️  `meta-introspector/cloudflare-pages-action@v1` - **MISSING - needs to be created**
+- ✅ `meta-introspector/cloudflare-pages-action@v1` - Custom Cloudflare Pages deploy action
 
 ### Status
 
@@ -22,7 +22,7 @@ This project **only uses custom GitHub Actions from the meta-introspector organi
 |--------|-----------|--------|-------|
 | checkout | [meta-introspector/checkout](https://github.com/meta-introspector/checkout) | ✅ Exists | Fork of actions/checkout |
 | lean-action | [meta-introspector/lean-action](https://github.com/meta-introspector/lean-action) | ✅ Exists | Lean4 CI action |
-| cloudflare-pages-action | meta-introspector/cloudflare-pages-action | ❌ Missing | **TODO: Create this action** |
+| cloudflare-pages-action | [meta-introspector/cloudflare-pages-action](https://github.com/meta-introspector/cloudflare-pages-action) | ✅ Exists | Forked from kitabisa/cloudflare-pages-action |
 
 ### Rationale
 
@@ -40,20 +40,19 @@ Only universally-trusted GitHub-maintained actions are allowed:
 - `actions/upload-artifact`
 - `actions/setup-*` (when no org alternative exists)
 
-### Missing Actions
+### Forked Actions
 
 #### cloudflare-pages-action
 
-**Status:** Does not exist yet
+**Status:** ✅ Forked and synced
 
-**Needed for:** deploy.yml Cloudflare Pages deployment
+**Location:** [meta-introspector/cloudflare-pages-action](https://github.com/meta-introspector/cloudflare-pages-action)
 
-**Options:**
-1. Create `meta-introspector/cloudflare-pages-action` repo
-2. Fork `cloudflare/pages-action` to our org
-3. Replace with direct wrangler CLI commands in workflow
+**Upstream:** [kitabisa/cloudflare-pages-action](https://github.com/kitabisa/cloudflare-pages-action)
 
-**Recommended:** Fork `cloudflare/pages-action` to maintain control while preserving functionality.
+**Worktree:** `/mnt/data1/time-2026/10-october/10/cloudflare-pages-action`
+
+**Sync status:** Up to date with upstream (ahead by 1 commit)
 
 ### Adding New Actions
 
