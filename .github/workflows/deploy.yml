@@ -21,10 +21,10 @@ jobs:
     
     steps:
       - name: Checkout code (meta-introspector)
-        uses: actions/checkout@v4
+        uses: meta-introspector/checkout@v4
         
       - name: Set up Python (meta-introspector)
-        uses: actions/setup-python@v5
+        uses: meta-introspector/lean-action@main
         with:
           python-version: '3.11'
         
@@ -50,7 +50,7 @@ jobs:
           docker push arist/lean-worker:latest
           
       - name: Deploy to Cloudflare Pages (meta-introspector)
-        uses: cloudflare/pages-action@v1
+        uses: meta-introspector/cloudflare-pages-action@v1
         with:
           api_token: ${{ secrets.CF_API_TOKEN }}
           account_id: ${{ secrets.CF_ACCOUNT_ID }}
