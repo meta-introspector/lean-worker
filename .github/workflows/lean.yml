@@ -81,16 +81,28 @@ jobs:
 
       - name: Run Gokujo verification (single-file proof gate)
         run: |
-          # Get or build gokujo
-          if ! command -v gokujo &> /dev/null; then
-            echo "Building gojo from source..."
-            lean --make minimal/Gokujo.lean -o gokujo-temp
+          # Get or build gokujo (absolute path, since the check runs inside minimal/)
+          if command -v gokujo &> /dev/null; then
+            GOKUJO="$(realpath -s "$(command -v gokujo)")"
           else
-            gojo=gokujo
+            echo "Building gokujo from source..."
+            { cat minimal/Gokujo.lean
+              echo 'def main (argv : List String) : IO UInt32 := gokujoMain argv'; } > gokujo-main.lean
+            lean -c gokujo-main.c gokujo-main.lean
+            leanc gokujo-main.c -o gokujo-temp
+            GOKUJO="$PWD/gokujo-temp"
           fi
-          # Run comprehensive check
-          ${gogo:-gokujo-temp} check minimal/RequestProject --json > gokujo-report.json || true
+          # Check the canonical sources from inside minimal/: the Minimal lib roots
+          # plus the Proxy and Protocol modules Main imports (not the stale
+          # minimal/RequestProject mirror). Always print the report, keep the real exit status.
+          status=0
+          (cd minimal && "$GOKUJO" check \
+            Agent.lean APICapabilities.lean CommandExecution.lean CreditUsage.lean \
+            ExecutionTrace.lean ToolProvenance.lean Twin.lean Main.lean ProxyReport.lean \
+            Proxy Protocol \
+            --backend system --json) > gokujo-report.json || status=$?
           cat gokujo-report.json
+          exit "$status"
 
       - name: Upload build artifacts
         if: matrix.stage == 'full'
