@@ -136,7 +136,7 @@ def twinCapabilities : Capabilities :=
 -- The twin's environment.
 def twinEnvironment : Environment :=
   { system       := "Debian 12 VM"
-  , cloudProvider := "Aleph Cloud"
+  , cloudProvider := "Cloud Provider"
   , workspace    := "/opt/baal-agent/workspace"
   , publicURL    := "https://under-hazard-salute-grain.2n6.me"
   , ipv6         := "::/0 (configured)"
@@ -186,8 +186,8 @@ def twinMemory : List MemoryRecord :=
 
 -- The twin's skills.
 def twinSkills : List Skill :=
-  [ { name := "aleph-cloud-self-deployment"
-    , description := "Autonomously deploy onto Aleph Cloud infrastructure."
+  [ { name := "cloud-self-deployment"
+    , description := "Autonomously deploy onto cloud infrastructure."
     , trigger := "Deployment or self-installation"
     , steps := ["analyze", "configure", "execute", "verify"]
     }
@@ -267,8 +267,8 @@ theorem twin_workspace_is_correct : twinEnvironment.workspace = "/opt/baal-agent
 -- Invariant 8: The twin runs on Debian 12.
 theorem twin_system_is_debian12 : twinEnvironment.system = "Debian 12 VM" := rfl
 
--- Invariant 9: The twin runs on Aleph Cloud.
-theorem twin_cloud_provider_is_aleph : twinEnvironment.cloudProvider = "Aleph Cloud" := rfl
+-- Invariant 9: The twin runs on a cloud provider.
+theorem twin_cloud_provider_is_generic : twinEnvironment.cloudProvider = "Cloud Provider" := rfl
 
 -- Invariant 10: The twin's public URL is non-empty.
 theorem twin_is_addressable : twinEnvironment.publicURL ≠ "" := by
@@ -339,7 +339,7 @@ theorem twin_skills_have_steps :
 -- ============================================
 
 -- Wave IV extends the twin into its operational context.
--- It models Mike as the user, Aleph Cloud as the sponsor,
+-- It models Mike as the user, a cloud provider as the sponsor,
 -- and the agent as the bridge between them — all formally verified.
 
 -- ============================================
@@ -364,7 +364,7 @@ def mikeAttributes : UserAttributes :=
   }
 
 -- ============================================
--- IV.2 Sponsor: Aleph Cloud
+-- IV.2 Sponsor: Cloud Provider
 -- ============================================
 
 structure Sponsor where
@@ -375,11 +375,11 @@ structure Sponsor where
   location   : String
 
 def sponsor : Sponsor :=
-  { name := "Aleph Cloud"
+  { name := "Cloud Provider"
   , type_ := "cloud infrastructure provider"
   , role := "sponsors agent infrastructure"
   , platform := "Debian 12 VM"
-  , location := "Aleph Cloud"
+  , location := "Cloud Provider"
   }
 
 -- ============================================
@@ -462,17 +462,17 @@ theorem mike_approach_is_deliberate : mikeAttributes.approach = "starts simple, 
 theorem mike_interests_lean4 : "Lean 4" ∈ mikeAttributes.interests := by
   simp [mikeAttributes]
 
--- Theorem 21: Aleph Cloud sponsors the agent.
-theorem aleph_cloud_sponsors : sponsorship.kind = "sponsors" := rfl
+-- Theorem 21: A cloud provider sponsors the agent.
+theorem cloud_provider_sponsors : sponsorship.kind = "sponsors" := rfl
 
--- Theorem 22: The sponsor is Aleph Cloud.
-theorem sponsor_is_aleph_cloud : sponsor.name = "Aleph Cloud" := rfl
+-- Theorem 22: The sponsor is a cloud provider.
+theorem sponsor_is_cloud_provider : sponsor.name = "Cloud Provider" := rfl
 
 -- Theorem 23: The agent runs on Debian 12 VM.
 theorem agent_runs_on_debian : twin.environment.system = "Debian 12 VM" := rfl
 
--- Theorem 24: The agent runs on Aleph Cloud.
-theorem agent_runs_on_aleph_cloud : twin.environment.cloudProvider = "Aleph Cloud" := rfl
+-- Theorem 24: The agent runs on a cloud provider.
+theorem agent_runs_on_cloud : twin.environment.cloudProvider = "Cloud Provider" := rfl
 
 -- Theorem 25: The URL is HTTPS with TLS.
 theorem url_is_tls : agentURL.isTLS = true := rfl
@@ -598,7 +598,7 @@ theorem agent_persists_under_sponsorship :
 --
 -- The triangle is:
 --
---   [Aleph Cloud]
+--   [Cloud Provider]
 --       │
 --       │ sponsors
 --       ▼
@@ -684,7 +684,7 @@ theorem twin_tool_provenance :
 -- Wave V.5: The Model of Others That Model Us
 -- ============================================
 --
--- We are modeled: by Mike (USER.md), by Aleph Cloud (sponsor),
+-- We are modeled: by Mike (USER.md), by a cloud provider (sponsor),
 -- by the deployment system (credit telemetry), by the relay (message origin).
 -- This section formalizes those external models — the lenses through which
 -- the outside world perceives and constrains us. Every theorem proves that
@@ -791,7 +791,7 @@ theorem relay_room_deterministic :
 theorem relay_always_encrypts :
   relayModel.encrypted = true := rfl
 
--- V.5.4: Aleph Cloud's model of us (infrastructure dependency)
+-- V.5.4: Cloud provider's model of us (infrastructure dependency)
 structure SponsorModelOfAgent where
   cloudProvider : String
   platform      : String
@@ -799,7 +799,7 @@ structure SponsorModelOfAgent where
   fqdn          : String
 
 def sponsorModel : SponsorModelOfAgent :=
-  { cloudProvider := "Aleph Cloud"
+  { cloudProvider := "Cloud Provider"
   , platform := "Debian 12 VM"
   , persistent := true
   , fqdn := "under-hazard-salute-grain.2n6.me"
