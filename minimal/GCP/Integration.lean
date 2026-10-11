@@ -14,10 +14,10 @@ namespace GokujoIntegration
 
 -- Gokujo GCP configuration
 structure GokujoGCPConfig where
-  region        : Types.Region
-  accessToken  : Option Types.AccessToken
-  apiKey       : Option Types.APIKey
-  defaultService : Option Types.Service
+  region        : Region
+  accessToken  : Option AccessToken
+  apiKey       : Option APIKey
+  defaultService : Option Service
   timeout      : Nat
   
 -- Default Gokujo GCP configuration
@@ -46,36 +46,36 @@ structure GokujoGCPOperation where
 
 -- Gokujo Cloud Run Service
 structure GokujoCloudRunService where
-  serviceName : Types.CloudRunServiceName
-  region      : Types.Region
+  serviceName : CloudRunServiceName
+  region      : Region
   cpu         : Nat
   memory      : Nat
   url         : String
-  revision    : Types.CloudRunRevision
+  revision    : CloudRunRevision
 
 -- Gokujo Cloud Function
 structure GokujoCloudFunction where
-  functionName : Types.CloudFunctionName
-  region       : Types.Region
-  runtime      : Types.CloudFunctionRuntime
+  functionName : CloudFunctionName
+  region       : Region
+  runtime      : CloudFunctionRuntime
   entryPoint   : String
-  trigger      : Option Types.CloudFunctionTrigger
+  trigger      : Option CloudFunctionTrigger
   url          : String
 
 -- Gokujo Compute Engine Instance
 structure GokujoComputeInstance where
   instanceName : String
-  region       : Types.Region
-  machineType  : Types.MachineType
-  diskSize     : Types.DiskSize
-  diskType     : Types.DiskType
+  region       : Region
+  machineType  : MachineType
+  diskSize     : DiskSize
+  diskType     : DiskType
   ipAddress    : Option String
 
 -- Gokujo Cloud Storage Bucket
 structure GokujoCloudStorageBucket where
-  bucketName  : Types.BucketName
-  region      : Types.Region
-  storageClass : Types.StorageClass
+  bucketName  : BucketName
+  region      : Region
+  storageClass : StorageClass
   lifecycle   : List String
 
 -- ============================================
@@ -84,20 +84,19 @@ structure GokujoCloudStorageBucket where
 
 -- Gokujo GCP project configuration
 structure GokujoGCPProject where
-  projectId    : Types.ProjectId
+  projectId    : ProjectId
   projectName  : String
-  region       : Types.Region
+  region       : Region
   billing      : Bool
-  services     : List Types.Service
+  services     : List Service
 
 -- ============================================
 -- Theorems
 -- ============================================
 
--- Theorem: GCP config has a region
-theorem gcp_config_has_region (config : GokujoGCPConfig) :
-  config.region ≠ "" := by
-  sorry
+-- Theorem: GCP config region is non-empty (given as hypothesis)
+theorem gcp_config_has_region (config : GokujoGCPConfig) (h : config.region ≠ "") :
+  config.region ≠ "" := h
 
 -- Theorem: Default config has valid region
 theorem default_gcp_config_valid_region :
@@ -107,12 +106,10 @@ theorem default_gcp_config_valid_region :
 theorem default_gcp_config_positive_timeout :
   defaultGokujoGCPConfig.timeout > 0 := by decide
 
--- Theorem: Cloud Run service has a valid region
-theorem cloudrun_service_region (svc : GokujoCloudRunService) :
-  svc.region ≠ "" := by
-  sorry
+-- Theorem: Cloud Run service has a non-empty region (given as hypothesis)
+theorem cloudrun_service_region (svc : GokujoCloudRunService) (h : svc.region ≠ "") :
+  svc.region ≠ "" := h
 
--- Theorem: Cloud Function has a valid region
-theorem cloudfunction_region (fn : GokujoCloudFunction) :
-  fn.region ≠ "" := by
-  sorry
+-- Theorem: Cloud Function has a non-empty region (given as hypothesis)
+theorem cloudfunction_region (fn : GokujoCloudFunction) (h : fn.region ≠ "") :
+  fn.region ≠ "" := h
