@@ -434,6 +434,13 @@ function handleDeskEndpoints(cfg, req, res, url, started, log) {
   if (pathname.startsWith("/desk/escrow/") && method === "GET") {
     const id = pathname.substring("/desk/escrow/".length);
     log.info("desk", "escrow state request", `${method} /desk/escrow/${roomRef(id)}`);
+    if (deskState.escrows.size === 0) {
+      sendJson(res, cfg, 501, {
+        ok: false,
+        error: "escrow store not yet populated"
+      });
+      return true;
+    }
     const escrow = deskState.escrows.get(id);
     if (!escrow) {
       sendJson(res, cfg, 404, {
@@ -464,6 +471,13 @@ function handleDeskEndpoints(cfg, req, res, url, started, log) {
   if (pathname === "/desk/kb" && method === "GET") {
     const query = url.searchParams.get("q") || "";
     log.info("desk", "KB query", `${method} ${pathname} len=${query.length}`);
+    if (deskState.kb.size === 0) {
+      sendJson(res, cfg, 501, {
+        ok: false,
+        error: "witnessed KB store not yet populated"
+      });
+      return true;
+    }
     const results = [...deskState.kb.values()].filter((r) =>
       !query || JSON.stringify(r).toLowerCase().includes(query.toLowerCase())
     );
