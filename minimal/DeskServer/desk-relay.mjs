@@ -55,7 +55,8 @@ export const CONFIG = {
   maxLine: posInt(args.get("max-line"), 262144),
   maxLines: posInt(args.get("max-lines"), 4096),
   maxBody: posInt(args.get("max-body"), 1048576),
-  maxRooms: posInt(args.get("max-rooms"), 1024),
+  maxRooms: posInt(args.get("max-rooms"), 128),
+  maxTotalBytes: posInt(args.get("max-total-bytes"), 64 * 1024 * 1024),
   roomTtlMs: posInt(args.get("room-ttl"), 6 * 60 * 60 * 1000),
   logFile: args.get("log") ?? process.env.KANT_LOG ?? "",
   quiet: args.get("quiet") === "1" || process.env.KANT_QUIET === "1" || !isMain,
@@ -96,21 +97,30 @@ export function makeLogger(cfg = CONFIG) {
 export class Rooms {
   constructor(cfg = CONFIG) {
     this.cfg = cfg;
-    this.map = new Map(); // room -> { base, lines, waiters, sockets, touched }
+    this.map = new Map(); // room -> { base, bytes, lines, waiters, sockets, touched }
+    this.totalBytes = 0;
+  }
+
+  deleteRoom(key) {
+    const r = this.map.get(key);
+    if (r) {
+      this.totalBytes = Math.max(0, this.totalBytes - r.bytes);
+      this.map.delete(key);
+    }
   }
 
   room(name) {
     const key = String(name);
     let r = this.map.get(key);
     if (!r) {
-      const maxRooms = this.cfg.maxRooms ?? 1024;
+      const maxRooms = this.cfg.maxRooms ?? 128;
       if (this.map.size >= maxRooms) {
         this.sweep();
       }
       if (this.map.size >= maxRooms) {
         for (const [k, candidate] of this.map) {
           if (candidate.sockets.size === 0 && candidate.waiters.size === 0) {
-            this.map.delete(k);
+            this.deleteRoom(k);
             break;
           }
         }
@@ -135,13 +145,34 @@ export class Rooms {
   post(name, lines) {
     const r = this.room(name);
     const maxBytes = this.cfg.maxBody ?? 1048576;
+    const maxTotal = this.cfg.maxTotalBytes ?? 64 * 1024 * 1024;
     for (const l of lines) {
+      const b = Buffer.byteLength(l, "utf8");
       r.lines.push(l);
-      r.bytes += Buffer.byteLength(l, "utf8");
+      r.bytes += b;
+      this.totalBytes += b;
     }
     while (r.lines.length > this.cfg.maxLines || (r.bytes > maxBytes && r.lines.length > 0)) {
       const removed = r.lines.shift();
-      r.bytes -= Buffer.byteLength(removed, "utf8");
+      const b = Buffer.byteLength(removed, "utf8");
+      r.bytes -= b;
+      this.totalBytes = Math.max(0, this.totalBytes - b);
+      r.base += 1;
+    }
+    if (this.totalBytes > maxTotal) {
+      this.sweep();
+    }
+    for (const [k, candidate] of this.map) {
+      if (this.totalBytes <= maxTotal) break;
+      if (candidate !== r && candidate.sockets.size === 0 && candidate.waiters.size === 0) {
+        this.deleteRoom(k);
+      }
+    }
+    while (this.totalBytes > maxTotal && r.lines.length > 0) {
+      const removed = r.lines.shift();
+      const b = Buffer.byteLength(removed, "utf8");
+      r.bytes -= b;
+      this.totalBytes = Math.max(0, this.totalBytes - b);
       r.base += 1;
     }
     const cursor = r.base + r.lines.length;
@@ -174,7 +205,7 @@ export class Rooms {
         clearTimeout(timer);
         r.waiters.delete(done);
         if (r.lines.length === 0 && r.sockets.size === 0 && r.waiters.size === 0) {
-          this.map.delete(name);
+          this.deleteRoom(String(name));
         }
         resolve();
       };
@@ -187,7 +218,7 @@ export class Rooms {
     const now = Date.now();
     for (const [name, r] of this.map) {
       if (r.sockets.size === 0 && r.waiters.size === 0 &&
-          now - r.touched > this.cfg.roomTtlMs) this.map.delete(name);
+          now - r.touched > this.cfg.roomTtlMs) this.deleteRoom(name);
     }
   }
 
@@ -556,6 +587,7 @@ function wsFrames(buf, maxPayload = 1024 * 1024) {
   let off = 0;
   while (off + 2 <= buf.length) {
     const b0 = buf[off], b1 = buf[off + 1];
+    const fin = (b0 & 0x80) !== 0;
     const opcode = b0 & 0x0f;
     const masked = (b1 & 0x80) !== 0;
     let len = b1 & 0x7f;
@@ -574,7 +606,7 @@ function wsFrames(buf, maxPayload = 1024 * 1024) {
     const data = Buffer.from(buf.subarray(p, p + len));
     if (mask) for (let i = 0; i < data.length; i++) data[i] ^= mask[i % 4];
     off = p + len;
-    out.push({ opcode, data });
+    out.push({ fin, opcode, data });
   }
   return { frames: out, used: off, oversized: false };
 }
@@ -629,7 +661,21 @@ function handleUpgrade(cfg, rooms, req, socket, log = { info() {}, warn() {}, er
   r.sockets.add(state);
   state.push(rooms.fetch(room, state.cursor));
 
+  const handleTextMessage = (payload) => {
+    const lines = payload.toString("utf8").split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
+    if (lines.some((l) => Buffer.byteLength(l, "utf8") > cfg.maxLine)) {
+      log.warn("socket", "a line was too long", roomRef(room));
+      socket.write(wsFrame(JSON.stringify({ ok: false, error: "line too long" })));
+      return;
+    }
+    if (lines.length) rooms.post(room, lines);
+  };
+
   let pending = Buffer.alloc(0);
+  let fragChunks = [];
+  let fragBytes = 0;
+  let inTextFrag = false;
+
   socket.on("data", (chunk) => {
     if (pending.length + chunk.length > cfg.maxBody) {
       log.warn("socket", "websocket buffer exceeded maxBody", roomRef(room));
@@ -644,17 +690,38 @@ function handleUpgrade(cfg, rooms, req, socket, log = { info() {}, warn() {}, er
       return;
     }
     pending = pending.subarray(used);
-    for (const { opcode, data } of frames) {
+    for (const { fin, opcode, data } of frames) {
       if (opcode === 0x8) { socket.end(); return; }
-      if (opcode === 0x9 && data.length <= 125) socket.write(Buffer.concat([Buffer.from([0x8a, data.length]), data]));
+      if (opcode === 0x9 && data.length <= 125) {
+        socket.write(Buffer.concat([Buffer.from([0x8a, data.length]), data]));
+        continue;
+      }
       if (opcode === 0x1) {
-        const lines = data.toString("utf8").split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
-        if (lines.some((l) => Buffer.byteLength(l, "utf8") > cfg.maxLine)) {
-          log.warn("socket", "a line was too long", roomRef(room));
-          socket.write(wsFrame(JSON.stringify({ ok: false, error: "line too long" })));
-          continue;
+        if (inTextFrag) {
+          socket.destroy();
+          return;
         }
-        if (lines.length) rooms.post(room, lines);
+        if (fin) {
+          handleTextMessage(data);
+        } else {
+          inTextFrag = true;
+          fragChunks = [data];
+          fragBytes = data.length;
+        }
+      } else if (opcode === 0x0) {
+        if (!inTextFrag || fragBytes + data.length > cfg.maxBody) {
+          socket.destroy();
+          return;
+        }
+        fragChunks.push(data);
+        fragBytes += data.length;
+        if (fin) {
+          const full = Buffer.concat(fragChunks);
+          fragChunks = [];
+          fragBytes = 0;
+          inTextFrag = false;
+          handleTextMessage(full);
+        }
       }
     }
   });
@@ -662,7 +729,7 @@ function handleUpgrade(cfg, rooms, req, socket, log = { info() {}, warn() {}, er
   const drop = () => {
     r.sockets.delete(state);
     if (r.lines.length === 0 && r.sockets.size === 0 && r.waiters.size === 0) {
-      rooms.map.delete(room);
+      rooms.deleteRoom(String(room));
     }
   };
   socket.on("close", () => { log.info("socket", `a stream closed`, roomRef(room)); drop(); });
