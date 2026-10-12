@@ -116,8 +116,7 @@ export class Rooms {
         }
       }
       if (this.map.size >= maxRooms) {
-        const oldestKey = this.map.keys().next().value;
-        if (oldestKey !== undefined) this.map.delete(oldestKey);
+        throw new Error("room capacity reached");
       }
       const created = { base: 0, lines: [], waiters: new Set(), sockets: new Set(), touched: Date.now() };
       this.map.set(key, created);
@@ -222,13 +221,22 @@ const sendJson = (res, cfg, code, obj) => {
 function readBody(req, limit) {
   return new Promise((resolve, reject) => {
     let size = 0;
+    let failed = false;
     const chunks = [];
     req.on("data", (c) => {
+      if (failed) return;
       size += c.length;
-      if (size > limit) { reject(new Error("too large")); req.destroy(); return; }
+      if (size > limit) {
+        failed = true;
+        req.resume();
+        reject(new Error("too large"));
+        return;
+      }
       chunks.push(c);
     });
-    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    req.on("end", () => {
+      if (!failed) resolve(Buffer.concat(chunks).toString("utf8"));
+    });
     req.on("error", reject);
   });
 }
@@ -437,7 +445,8 @@ export function createServer(cfg = CONFIG, rooms = new Rooms(cfg), log = makeLog
         try { body = await readBody(req, cfg.maxBody); }
         catch (e) {
           log.warn("relay", "a body was refused", `${roomRef(room)}: ${e.message}`);
-          sendJson(res, cfg, 413, { ok: false, error: "body too large" });
+          res.writeHead(413, { "content-type": "application/json", connection: "close", ...cors(cfg) });
+          res.end(JSON.stringify({ ok: false, error: "body too large" }));
           return;
         }
         const lines = body.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
@@ -446,7 +455,14 @@ export function createServer(cfg = CONFIG, rooms = new Rooms(cfg), log = makeLog
           sendJson(res, cfg, 413, { ok: false, error: "line too long" });
           return;
         }
-        const cursor = rooms.post(room, lines);
+        let cursor;
+        try {
+          cursor = rooms.post(room, lines);
+        } catch (e) {
+          log.warn("relay", "room capacity reached", `${roomRef(room)}: ${e.message}`);
+          sendJson(res, cfg, 503, { ok: false, error: "room capacity reached" });
+          return;
+        }
         log.info("relay", `posted ${lines.length} lines`, `${roomRef(room)} cursor=${cursor}`);
         sendJson(res, cfg, 200, { ok: true, cursor, accepted: lines.length });
         return;
@@ -458,7 +474,13 @@ export function createServer(cfg = CONFIG, rooms = new Rooms(cfg), log = makeLog
         let out = rooms.fetch(room, cursor);
         if (wait > 0 && out.lines.length === 0) {
           log.info("relay", `waiting for room`, `${roomRef(room)} cursor=${cursor} wait=${wait}s`);
-          await rooms.wait(room, wait * 1000);
+          try {
+            await rooms.wait(room, wait * 1000);
+          } catch (e) {
+            log.warn("relay", "room capacity reached on wait", `${roomRef(room)}: ${e.message}`);
+            sendJson(res, cfg, 503, { ok: false, error: "room capacity reached" });
+            return;
+          }
           out = rooms.fetch(room, cursor);
         }
         log.info("relay", `fetched room`, `${roomRef(room)} cursor=${cursor} -> ${out.cursor} lines=${out.lines.length} truncated=${out.truncated}`);
@@ -563,6 +585,15 @@ function handleUpgrade(cfg, rooms, req, socket, log = { info() {}, warn() {}, er
     socket.destroy();
     return;
   }
+  let r;
+  try {
+    r = rooms.room(room);
+  } catch (e) {
+    log.warn("relay", "websocket upgrade rejected", `${roomRef(room)}: ${e.message}`);
+    socket.write("HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n");
+    socket.destroy();
+    return;
+  }
   log.info("relay", "websocket upgrade", `${roomRef(room)} cursor=${url.searchParams.get("cursor") ?? 0}`);
 
   socket.write(
@@ -575,12 +606,17 @@ function handleUpgrade(cfg, rooms, req, socket, log = { info() {}, warn() {}, er
     cursor: Number(url.searchParams.get("cursor") ?? 0) || 0,
     push(out) {
       if (out.lines.length === 0) { state.cursor = out.cursor; return; }
+      const frame = wsFrame(JSON.stringify({ ok: true, ...out }));
+      if (socket.writableLength + frame.length > cfg.maxBody) {
+        log.warn("socket", "websocket outbound buffer exceeded maxBody", roomRef(room));
+        socket.destroy();
+        return;
+      }
       state.cursor = out.cursor;
-      socket.write(wsFrame(JSON.stringify({ ok: true, ...out })));
+      socket.write(frame);
     },
   };
 
-  const r = rooms.room(room);
   r.sockets.add(state);
   state.push(rooms.fetch(room, state.cursor));
 

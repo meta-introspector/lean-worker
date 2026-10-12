@@ -164,7 +164,7 @@ class GitHubIntegration:
         return [
             line.strip().split(" ", 1)[0] + " " + line.strip().split(" ", 1)[1] if len(line.strip().split(" ")) > 1 else line.strip().split(" ")[0]
             for line in stdout.split("\n")
-            if line.strip() and line.strip()[0] in "MADRC"
+            if line.strip() and not line.strip().startswith("??") and line.strip()[0] in "MADRCU"
         ]
 
     def _get_untracked_files(self, status_result: Dict) -> List[str]:
