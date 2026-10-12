@@ -301,6 +301,15 @@ class GitHubIntegration:
         commit_message: str = None,
     ) -> Dict[str, Any]:
         """Merge a pull request."""
+        if merge_method not in ("merge", "squash", "rebase"):
+            return {
+                "success": False,
+                "error": f"Invalid merge_method '{merge_method}'. Must be 'merge', 'squash', or 'rebase'.",
+                "command": None,
+                "result": None,
+                "pr_number": pr_number,
+                "merge_method": merge_method,
+            }
         cmd = ["gh", "pr", "merge", str(pr_number), f"--{merge_method}"]
         if commit_title:
             cmd.extend(["--commit-title", commit_title])

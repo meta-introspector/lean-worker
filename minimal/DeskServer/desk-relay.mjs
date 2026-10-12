@@ -72,9 +72,12 @@ export const roomRef = (room) =>
  *  file named by `--log` (appending) and, unless `--quiet`, to stdout. */
 export function makeLogger(cfg = CONFIG) {
   const stream = cfg.logFile ? fs.createWriteStream(cfg.logFile, { flags: "a" }) : null;
+  const clean = (s) => String(s).replace(/[\r\n]+/g, " ");
   const write = (level, area, text, detail = "") => {
-    const line = `${new Date().toISOString()} ${level.padEnd(5)} ${area.padEnd(6)} ${text}` +
-      `${detail ? `  |  ${detail}` : ""}`;
+    const safeText = clean(text);
+    const safeDetail = detail ? clean(detail) : "";
+    const line = `${new Date().toISOString()} ${level.padEnd(5)} ${area.padEnd(6)} ${safeText}` +
+      `${safeDetail ? `  |  ${safeDetail}` : ""}`;
     if (stream) stream.write(`${line}\n`);
     if (!cfg.quiet) console.log(line);
     return line;
@@ -97,7 +100,8 @@ export class Rooms {
   }
 
   room(name) {
-    let r = this.map.get(name);
+    const key = String(name);
+    let r = this.map.get(key);
     if (!r) {
       const maxRooms = this.cfg.maxRooms ?? 1024;
       if (this.map.size >= maxRooms) {
@@ -115,8 +119,9 @@ export class Rooms {
         const oldestKey = this.map.keys().next().value;
         if (oldestKey !== undefined) this.map.delete(oldestKey);
       }
-      r = { base: 0, lines: [], waiters: new Set(), sockets: new Set(), touched: Date.now() };
-      this.map.set(name, r);
+      const created = { base: 0, lines: [], waiters: new Set(), sockets: new Set(), touched: Date.now() };
+      this.map.set(key, created);
+      r = created;
     }
     r.touched = Date.now();
     return r;
@@ -304,15 +309,9 @@ function handleDeskEndpoints(cfg, req, res, url, started, log) {
   // POST /desk/quote - request a bilateral quote on a unit
   if (pathname === "/desk/quote" && method === "POST") {
     log.info("desk", "quote request", `${method} ${pathname}`);
-    // TODO: Parse body, compute quote based on artifact properties
-    sendJson(res, cfg, 200, {
-      ok: true,
-      quote: {
-        artifactId: "work_unit_001",
-        priceMetameme: 500,
-        checkCostCPUMinutes: 23.2,
-        validUntil: Date.now() + 3600000 // 1 hour
-      }
+    sendJson(res, cfg, 501, {
+      ok: false,
+      error: "quote computation not yet implemented"
     });
     return true;
   }
@@ -342,7 +341,7 @@ function handleDeskEndpoints(cfg, req, res, url, started, log) {
   // GET /desk/escrow/{id} - escrow state
   if (pathname.startsWith("/desk/escrow/") && method === "GET") {
     const id = pathname.substring("/desk/escrow/".length);
-    log.info("desk", "escrow state request", `${method} ${pathname} id=${id}`);
+    log.info("desk", "escrow state request", `${method} /desk/escrow/${roomRef(id)}`);
     const escrow = deskState.escrows.get(id);
     if (!escrow) {
       sendJson(res, cfg, 404, {
@@ -372,7 +371,7 @@ function handleDeskEndpoints(cfg, req, res, url, started, log) {
   // GET /desk/kb?q= - witnessed KB query
   if (pathname === "/desk/kb" && method === "GET") {
     const query = url.searchParams.get("q") || "";
-    log.info("desk", "KB query", `${method} ${pathname} q="${query}"`);
+    log.info("desk", "KB query", `${method} ${pathname} len=${query.length}`);
     // TODO: Query witnessed KB store, return matching records
     sendJson(res, cfg, 200, {
       ok: true,
