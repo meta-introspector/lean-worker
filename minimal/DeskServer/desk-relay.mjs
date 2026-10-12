@@ -27,6 +27,7 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { pathToFileURL } from "node:url";
 
 const args = new Map();
 for (let i = 2; i < process.argv.length; i += 1) {
@@ -40,7 +41,7 @@ for (let i = 2; i < process.argv.length; i += 1) {
 
 /** Are we the program being run, or a library inside somebody else's?
  *  A library keeps quiet unless it is given a log file. */
-const isMain = process.argv[1] && import.meta.url === `file://${path.resolve(process.argv[1])}`;
+const isMain = Boolean(process.argv[1]) && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
 
 const posInt = (raw, fallback, max = Infinity) => {
   const n = Number(raw);
