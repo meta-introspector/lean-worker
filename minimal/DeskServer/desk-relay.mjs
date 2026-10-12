@@ -118,7 +118,7 @@ export class Rooms {
       if (this.map.size >= maxRooms) {
         throw new Error("room capacity reached");
       }
-      const created = { base: 0, lines: [], waiters: new Set(), sockets: new Set(), touched: Date.now() };
+      const created = { base: 0, bytes: 0, lines: [], waiters: new Set(), sockets: new Set(), touched: Date.now() };
       this.map.set(key, created);
       r = created;
     }
@@ -134,11 +134,15 @@ export class Rooms {
 
   post(name, lines) {
     const r = this.room(name);
-    for (const l of lines) r.lines.push(l);
-    if (r.lines.length > this.cfg.maxLines) {
-      const drop = r.lines.length - this.cfg.maxLines;
-      r.lines.splice(0, drop);
-      r.base += drop;
+    const maxBytes = this.cfg.maxBody ?? 1048576;
+    for (const l of lines) {
+      r.lines.push(l);
+      r.bytes += Buffer.byteLength(l, "utf8");
+    }
+    while (r.lines.length > this.cfg.maxLines || (r.bytes > maxBytes && r.lines.length > 0)) {
+      const removed = r.lines.shift();
+      r.bytes -= Buffer.byteLength(removed, "utf8");
+      r.base += 1;
     }
     const cursor = r.base + r.lines.length;
     for (const w of [...r.waiters]) { r.waiters.delete(w); w(); }
@@ -299,16 +303,19 @@ function handleDeskEndpoints(cfg, req, res, url, started, log) {
   // GET /desk/board - the 21-bounty board, rendered from BountyBoard
   if (pathname === "/desk/board" && method === "GET") {
     log.info("desk", "board request", `${method} ${pathname}`);
-    // TODO: Render from BountyBoard.lean (would need FFI or pre-generated data)
+    if (deskState.bounties.size === 0) {
+      sendJson(res, cfg, 501, {
+        ok: false,
+        error: "bounty board store not yet populated"
+      });
+      return true;
+    }
+    const bounties = [...deskState.bounties.values()];
     sendJson(res, cfg, 200, {
       ok: true,
       board: {
-        totalUnits: 11300,
-        bounties: [
-          { id: "B1", lane: "leanTh", price: 100, escrowMode: "hashChained" },
-          { id: "B2", lane: "independent", price: 300, escrowMode: "quorumMofN" }
-          // ... 19 more bounties
-        ]
+        totalUnits: bounties.reduce((sum, b) => sum + (Number(b.price) || 0), 0),
+        bounties
       }
     });
     return true;
@@ -380,10 +387,12 @@ function handleDeskEndpoints(cfg, req, res, url, started, log) {
   if (pathname === "/desk/kb" && method === "GET") {
     const query = url.searchParams.get("q") || "";
     log.info("desk", "KB query", `${method} ${pathname} len=${query.length}`);
-    // TODO: Query witnessed KB store, return matching records
+    const results = [...deskState.kb.values()].filter((r) =>
+      !query || JSON.stringify(r).toLowerCase().includes(query.toLowerCase())
+    );
     sendJson(res, cfg, 200, {
       ok: true,
-      results: [],
+      results,
       query,
       timestamp: Date.now()
     });
@@ -639,8 +648,12 @@ function handleUpgrade(cfg, rooms, req, socket, log = { info() {}, warn() {}, er
       if (opcode === 0x8) { socket.end(); return; }
       if (opcode === 0x9 && data.length <= 125) socket.write(Buffer.concat([Buffer.from([0x8a, data.length]), data]));
       if (opcode === 0x1) {
-        const lines = data.toString("utf8").split("\n")
-          .map((l) => l.trim()).filter((l) => l.length > 0 && Buffer.byteLength(l, "utf8") <= cfg.maxLine);
+        const lines = data.toString("utf8").split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
+        if (lines.some((l) => Buffer.byteLength(l, "utf8") > cfg.maxLine)) {
+          log.warn("socket", "a line was too long", roomRef(room));
+          socket.write(wsFrame(JSON.stringify({ ok: false, error: "line too long" })));
+          continue;
+        }
         if (lines.length) rooms.post(room, lines);
       }
     }

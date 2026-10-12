@@ -327,11 +327,11 @@ class GitHubIntegration:
 
     def close_pr(self, pr_number: int, reason: str = "completed") -> Dict[str, Any]:
         """Close a pull request."""
-        cmd = f"gh pr close {pr_number} --reason {reason}"
+        cmd = ["gh", "pr", "close", str(pr_number), "--reason", reason]
         result = self.execute_command(cmd)
         return {
             "success": result.get("success", False),
-            "command": cmd,
+            "command": shlex.join(cmd),
             "result": result,
             "pr_number": pr_number,
             "reason": reason,
@@ -340,11 +340,11 @@ class GitHubIntegration:
     def create_branch(self, branch_name: str, start_point: str = None) -> Dict[str, Any]:
         """Create a new branch."""
         start = start_point or "HEAD"
-        cmd = f"git checkout -b {branch_name} {start}"
+        cmd = ["git", "checkout", "-b", branch_name, start]
         checkout_result = self.execute_command(cmd)
         return {
             "success": checkout_result.get("success", False),
-            "command": cmd,
+            "command": shlex.join(cmd),
             "result": checkout_result,
             "branch_name": branch_name,
             "start_point": start_point,
@@ -352,7 +352,7 @@ class GitHubIntegration:
 
     def list_branches(self, all_branches: bool = False) -> Dict[str, Any]:
         """List branches in the repository."""
-        cmd = f"git branch {'-a' if all_branches else ''}"
+        cmd = ["git", "branch", "-a"] if all_branches else ["git", "branch"]
         result = self.execute_command(cmd)
         branches = []
         if result.get("success"):
@@ -368,14 +368,14 @@ class GitHubIntegration:
                     )
         return {
             "success": result.get("success", False),
-            "command": cmd,
+            "command": shlex.join(cmd),
             "result": result,
             "branches": branches,
         }
 
     def get_tags(self) -> Dict[str, Any]:
         """Get tags in the repository."""
-        cmd = "git tag --list"
+        cmd = ["git", "tag", "--list"]
         result = self.execute_command(cmd)
         tags = []
         if result.get("success"):
@@ -383,11 +383,11 @@ class GitHubIntegration:
                 line = line.strip()
                 if line:
                     tags.append(line)
-        return {"success": result.get("success", False), "command": cmd, "result": result, "tags": tags}
+        return {"success": result.get("success", False), "command": shlex.join(cmd), "result": result, "tags": tags}
 
     def get_commit_history(self, limit: int = 10) -> Dict[str, Any]:
         """Get commit history."""
-        cmd = f"git log -{limit} --oneline"
+        cmd = ["git", "log", f"-{int(limit)}", "--oneline"]
         result = self.execute_command(cmd)
         commits = []
         if result.get("success"):
@@ -395,58 +395,58 @@ class GitHubIntegration:
                 line = line.strip()
                 if line:
                     commits.append(line)
-        return {"success": result.get("success", False), "command": cmd, "result": result, "commits": commits}
+        return {"success": result.get("success", False), "command": shlex.join(cmd), "result": result, "commits": commits}
 
     def get_diff(self, ref1: str = None, ref2: str = None) -> Dict[str, Any]:
         """Get diff between commits/branches."""
         ref1 = ref1 or "HEAD~1"
         ref2 = ref2 or "HEAD"
-        cmd = f"git diff {ref1}..{ref2}"
+        cmd = ["git", "diff", f"{ref1}..{ref2}"]
         result = self.execute_command(cmd)
         return {
             "success": result.get("success", False),
-            "command": cmd,
+            "command": shlex.join(cmd),
             "result": result,
             "diff": result.get("stdout", ""),
         }
 
     def stash_changes(self, message: str = None) -> Dict[str, Any]:
         """Stash current changes."""
-        cmd = f"git stash save" + (f" \"{message}\"" if message else "")
+        cmd = ["git", "stash", "save", message] if message else ["git", "stash", "save"]
         result = self.execute_command(cmd)
-        return {"success": result.get("success", False), "command": cmd, "result": result}
+        return {"success": result.get("success", False), "command": shlex.join(cmd), "result": result}
 
     def stash_pop(self) -> Dict[str, Any]:
         """Pop stashed changes."""
-        cmd = "git stash pop"
+        cmd = ["git", "stash", "pop"]
         result = self.execute_command(cmd)
-        return {"success": result.get("success", False), "command": cmd, "result": result}
+        return {"success": result.get("success", False), "command": shlex.join(cmd), "result": result}
 
     def checkout(self, ref: str) -> Dict[str, Any]:
         """Checkout a branch or commit."""
-        cmd = f"git checkout {ref}"
+        cmd = ["git", "checkout", ref]
         result = self.execute_command(cmd)
-        return {"success": result.get("success", False), "command": cmd, "result": result, "ref": ref}
+        return {"success": result.get("success", False), "command": shlex.join(cmd), "result": result, "ref": ref}
 
     def reset_hard(self, ref: str = "HEAD") -> Dict[str, Any]:
         """Reset to a specific commit."""
-        cmd = f"git reset --hard {ref}"
+        cmd = ["git", "reset", "--hard", ref]
         result = self.execute_command(cmd)
-        return {"success": result.get("success", False), "command": cmd, "result": result, "ref": ref}
+        return {"success": result.get("success", False), "command": shlex.join(cmd), "result": result, "ref": ref}
 
     def clean_untracked(self) -> Dict[str, Any]:
         """Clean untracked files."""
-        cmd = "git clean -fd"
+        cmd = ["git", "clean", "-fd"]
         result = self.execute_command(cmd)
-        return {"success": result.get("success", False), "command": cmd, "result": result}
+        return {"success": result.get("success", False), "command": shlex.join(cmd), "result": result}
 
     def pull(self, remote: str = None, branch: str = None) -> Dict[str, Any]:
         """Pull changes from remote."""
         remote_name = remote or self.git_config["remote_name"]
-        branch_name = branch or self.execute_command("git branch --show-current").get("stdout", "").strip()
-        cmd = f"git pull {remote_name} {branch_name}"
+        branch_name = branch or self.execute_command(["git", "branch", "--show-current"]).get("stdout", "").strip()
+        cmd = ["git", "pull", remote_name, branch_name]
         result = self.execute_command(cmd)
-        return {"success": result.get("success", False), "command": cmd, "result": result}
+        return {"success": result.get("success", False), "command": shlex.join(cmd), "result": result}
 
 
 # Create a global instance for convenience
