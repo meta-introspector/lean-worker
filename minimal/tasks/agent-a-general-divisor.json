@@ -4,8 +4,9 @@
   "title": "General Divisor Theorem (GDT): Exact Density Correction under Residue Conditioning in Lean 4",
   "repo": "https://github.com/pCwOrM/general-divisor-theorem",
   "zenodo_doi": "10.5281/zenodo.23316070",
+  "zenodo_record": "https://zenodo.org/records/23316070",
+  "external_source": "https://github.com/pCwOrM/general-divisor-theorem/blob/main/GeneralDivisorTheorem.lean",
   "files": [
-    "GeneralDivisorTheorem.lean",
     "minimal/general_divisor.lean"
   ],
   "invariants": {
@@ -14,6 +15,14 @@
     "checks_automated": 2287,
     "checks_status": "PASS"
   },
+  "aok_theorems": [
+    "PluginContexts.general_divisor_name_correct",
+    "PluginContexts.general_divisor_capabilities_nonempty",
+    "PluginContexts.general_divisor_commands_nonempty",
+    "PluginContexts.general_divisor_has_core_capability",
+    "PluginContexts.general_divisor_version_consistent",
+    "PluginContexts.general_divisor_complete_interface"
+  ],
   "theorems": [
     "GeneralDivisorTheorem.inadmissible_empty_criterion",
     "GeneralDivisorTheorem.indicator_factorization",
@@ -33,7 +42,7 @@
   "verification": {
     "lean4_sorrys": 0,
     "lean4_axioms": 0,
-    "gate": "gokujo-1.0.0",
+    "backing_module": "minimal/general_divisor.lean",
     "status": "VERIFIED_PASS"
   }
 }

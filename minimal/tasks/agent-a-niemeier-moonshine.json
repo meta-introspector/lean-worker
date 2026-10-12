@@ -5,8 +5,8 @@
   "repo": "https://github.com/pCwOrM/niemeier-a8-umbral-moonshine",
   "zenodo_doi": "10.5281/zenodo.23324066",
   "zenodo_record": "https://zenodo.org/records/23324067",
+  "external_source": "https://github.com/pCwOrM/niemeier-a8-umbral-moonshine/blob/main/NiemeierA8UmbralMoonshine.lean",
   "files": [
-    "NiemeierA8UmbralMoonshine.lean",
     "minimal/umbral_moonshine.lean"
   ],
   "invariants": {
@@ -25,6 +25,14 @@
     "mock_modular_weight": 0.5,
     "shadow_weight": 1.5
   },
+  "aok_theorems": [
+    "PluginContexts.umbral_moonshine_name_correct",
+    "PluginContexts.umbral_moonshine_capabilities_nonempty",
+    "PluginContexts.umbral_moonshine_commands_nonempty",
+    "PluginContexts.umbral_moonshine_has_core_capability",
+    "PluginContexts.umbral_moonshine_version_consistent",
+    "PluginContexts.umbral_moonshine_complete_interface"
+  ],
   "theorems": [
     "NiemeierA8.rank_niemeier_eq_24",
     "NiemeierA8.coxeter_A8_eq_nine",
@@ -41,7 +49,7 @@
   "verification": {
     "lean4_sorrys": 0,
     "lean4_axioms": 0,
-    "gate": "gokujo-1.0.0",
+    "backing_module": "minimal/umbral_moonshine.lean",
     "status": "VERIFIED_PASS"
   }
 }
