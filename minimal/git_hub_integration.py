@@ -96,11 +96,12 @@ class GitHubIntegration:
         except (subprocess.TimeoutExpired, FileNotFoundError):
             print("⚠️ Warning: GitHub CLI not available. Some GitHub features will be limited.")
 
-    def execute_command(self, command: str, cwd: str = None) -> Dict[str, Any]:
-        """Execute a shell command and return results."""
+    def execute_command(self, command: Any, cwd: str = None) -> Dict[str, Any]:
+        """Execute a command and return results."""
         try:
+            cmd_args = command if isinstance(command, list) else shlex.split(command)
             result = subprocess.run(
-                shlex.split(command),
+                cmd_args,
                 cwd=cwd or self.project_root,
                 capture_output=True,
                 text=True,
@@ -177,21 +178,29 @@ class GitHubIntegration:
         ]
 
     def push_changes(
-        self, branch: str = None, commit_message: str = None, push_tags: bool = True
+        self,
+        branch: str = None,
+        commit_message: str = None,
+        push_tags: bool = True,
+        push: Optional[bool] = None,
     ) -> Dict[str, Any]:
-        """Push changes to GitHub."""
-        current_branch = self.execute_command("git branch --show-current").get("stdout", "").strip()
+        """Stage/commit changes locally and/or push to GitHub."""
+        current_branch = self.execute_command(["git", "branch", "--show-current"]).get("stdout", "").strip()
         target_branch = branch or current_branch
-        stage_result = self.execute_command("git add .")
+        stage_result = None
         commit_result = None
-        if commit_message:
-            commit_result = self.execute_command(f'git commit -m "{commit_message}"')
-        push_result = self.execute_command(
-            f"git push {self.git_config['remote_name']} {target_branch}"
-        )
+        if commit_message is not None:
+            stage_result = self.execute_command(["git", "add", "."])
+            commit_result = self.execute_command(["git", "commit", "-m", commit_message])
+        should_push = push if push is not None else (commit_message is None or branch is not None)
+        push_result = None
         tag_result = None
-        if push_tags:
-            tag_result = self.execute_command("git push --tags")
+        if should_push:
+            push_result = self.execute_command(
+                ["git", "push", self.git_config["remote_name"], target_branch]
+            )
+            if push_tags:
+                tag_result = self.execute_command(["git", "push", "--tags"])
         return {
             "staged": stage_result,
             "committed": commit_result,
@@ -220,14 +229,23 @@ class GitHubIntegration:
                 "base": base_branch,
             }
 
-        pr_cmd = (
-            f"gh pr create --title \"{title}\" --body \"{body}\" "
-            f"--head {head} --base {base_branch}"
-        )
+        pr_cmd = [
+            "gh",
+            "pr",
+            "create",
+            "--title",
+            title,
+            "--body",
+            body,
+            "--head",
+            head,
+            "--base",
+            base_branch,
+        ]
         if draft:
-            pr_cmd += " --draft"
+            pr_cmd.append("--draft")
         if reviewers:
-            pr_cmd += f" --reviewer {','.join(reviewers)}"
+            pr_cmd.extend(["--reviewer", ",".join(reviewers)])
 
         pr_result = self.execute_command(pr_cmd)
         pr_url = None
@@ -239,7 +257,7 @@ class GitHubIntegration:
 
         return {
             "success": pr_result.get("success", False),
-            "command": pr_cmd,
+            "command": shlex.join(pr_cmd),
             "result": pr_result,
             "pr_url": pr_url,
             "title": title,
@@ -283,16 +301,16 @@ class GitHubIntegration:
         commit_message: str = None,
     ) -> Dict[str, Any]:
         """Merge a pull request."""
-        cmd = f"gh pr merge {pr_number} --{merge_method}"
+        cmd = ["gh", "pr", "merge", str(pr_number), f"--{merge_method}"]
         if commit_title:
-            cmd += f" --commit-title \"{commit_title}\""
+            cmd.extend(["--commit-title", commit_title])
         if commit_message:
-            cmd += f" --commit-message \"{commit_message}\""
+            cmd.extend(["--commit-message", commit_message])
 
         result = self.execute_command(cmd)
         return {
             "success": result.get("success", False),
-            "command": cmd,
+            "command": shlex.join(cmd),
             "result": result,
             "pr_number": pr_number,
             "merge_method": merge_method,

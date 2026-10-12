@@ -42,15 +42,21 @@ for (let i = 2; i < process.argv.length; i += 1) {
  *  A library keeps quiet unless it is given a log file. */
 const isMain = process.argv[1] && import.meta.url === `file://${path.resolve(process.argv[1])}`;
 
+const posInt = (raw, fallback) => {
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : fallback;
+};
+
 export const CONFIG = {
-  port: Number(args.get("port") ?? process.env.PORT ?? 8787),
+  port: posInt(args.get("port") ?? process.env.PORT, 8787),
   host: args.get("host") ?? process.env.HOST ?? "0.0.0.0",
   staticDir: args.get("static") ?? process.env.KANT_STATIC ?? "",
   origin: args.get("origin") ?? process.env.KANT_ORIGIN ?? "*",
-  maxLine: Number(args.get("max-line") ?? 262144),
-  maxLines: Number(args.get("max-lines") ?? 4096),
-  maxBody: Number(args.get("max-body") ?? 1048576),
-  roomTtlMs: Number(args.get("room-ttl") ?? 6 * 60 * 60 * 1000),
+  maxLine: posInt(args.get("max-line"), 262144),
+  maxLines: posInt(args.get("max-lines"), 4096),
+  maxBody: posInt(args.get("max-body"), 1048576),
+  maxRooms: posInt(args.get("max-rooms"), 1024),
+  roomTtlMs: posInt(args.get("room-ttl"), 6 * 60 * 60 * 1000),
   logFile: args.get("log") ?? process.env.KANT_LOG ?? "",
   quiet: args.get("quiet") === "1" || process.env.KANT_QUIET === "1" || !isMain,
   version: "1.0.0",
@@ -93,6 +99,22 @@ export class Rooms {
   room(name) {
     let r = this.map.get(name);
     if (!r) {
+      const maxRooms = this.cfg.maxRooms ?? 1024;
+      if (this.map.size >= maxRooms) {
+        this.sweep();
+      }
+      if (this.map.size >= maxRooms) {
+        for (const [k, candidate] of this.map) {
+          if (candidate.sockets.size === 0 && candidate.waiters.size === 0) {
+            this.map.delete(k);
+            break;
+          }
+        }
+      }
+      if (this.map.size >= maxRooms) {
+        const oldestKey = this.map.keys().next().value;
+        if (oldestKey !== undefined) this.map.delete(oldestKey);
+      }
       r = { base: 0, lines: [], waiters: new Set(), sockets: new Set(), touched: Date.now() };
       this.map.set(name, r);
     }
@@ -101,7 +123,10 @@ export class Rooms {
   }
 
   /** Absolute length of the log: the cursor the next line will get. */
-  end(name) { const r = this.room(name); return r.base + r.lines.length; }
+  end(name) {
+    const r = this.map.get(name);
+    return r ? r.base + r.lines.length : 0;
+  }
 
   post(name, lines) {
     const r = this.room(name);
@@ -119,7 +144,11 @@ export class Rooms {
 
   /** Everything from `cursor` onwards, plus the new cursor. */
   fetch(name, cursor) {
-    const r = this.room(name);
+    const r = this.map.get(name);
+    if (!r) {
+      return { cursor: 0, lines: [], truncated: false };
+    }
+    r.touched = Date.now();
     const end = r.base + r.lines.length;
     const from = Math.max(cursor, r.base);
     return {
@@ -133,7 +162,14 @@ export class Rooms {
   wait(name, ms) {
     const r = this.room(name);
     return new Promise((resolve) => {
-      const done = () => { clearTimeout(timer); r.waiters.delete(done); resolve(); };
+      const done = () => {
+        clearTimeout(timer);
+        r.waiters.delete(done);
+        if (r.lines.length === 0 && r.sockets.size === 0 && r.waiters.size === 0) {
+          this.map.delete(name);
+        }
+        resolve();
+      };
       const timer = setTimeout(done, ms);
       r.waiters.add(done);
     });
@@ -307,15 +343,17 @@ function handleDeskEndpoints(cfg, req, res, url, started, log) {
   if (pathname.startsWith("/desk/escrow/") && method === "GET") {
     const id = pathname.substring("/desk/escrow/".length);
     log.info("desk", "escrow state request", `${method} ${pathname} id=${id}`);
-    // TODO: Fetch escrow state from store
+    const escrow = deskState.escrows.get(id);
+    if (!escrow) {
+      sendJson(res, cfg, 404, {
+        ok: false,
+        error: "escrow not found"
+      });
+      return true;
+    }
     sendJson(res, cfg, 200, {
       ok: true,
-      escrow: {
-        id,
-        status: "open",
-        currentBalance: 0,
-        receipts: []
-      }
+      escrow
     });
     return true;
   }
@@ -404,7 +442,7 @@ export function createServer(cfg = CONFIG, rooms = new Rooms(cfg), log = makeLog
           return;
         }
         const lines = body.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
-        if (lines.some((l) => l.length > cfg.maxLine)) {
+        if (lines.some((l) => Buffer.byteLength(l, "utf8") > cfg.maxLine)) {
           log.warn("relay", "a line was too long", roomRef(room));
           sendJson(res, cfg, 413, { ok: false, error: "line too long" });
           return;
@@ -564,16 +602,21 @@ function handleUpgrade(cfg, rooms, req, socket, log = { info() {}, warn() {}, er
     pending = pending.subarray(used);
     for (const { opcode, data } of frames) {
       if (opcode === 0x8) { socket.end(); return; }
-      if (opcode === 0x9) socket.write(Buffer.concat([Buffer.from([0x8a, data.length]), data]));
+      if (opcode === 0x9 && data.length <= 125) socket.write(Buffer.concat([Buffer.from([0x8a, data.length]), data]));
       if (opcode === 0x1) {
         const lines = data.toString("utf8").split("\n")
-          .map((l) => l.trim()).filter((l) => l.length > 0 && l.length <= cfg.maxLine);
+          .map((l) => l.trim()).filter((l) => l.length > 0 && Buffer.byteLength(l, "utf8") <= cfg.maxLine);
         if (lines.length) rooms.post(room, lines);
       }
     }
   });
 
-  const drop = () => { r.sockets.delete(state); };
+  const drop = () => {
+    r.sockets.delete(state);
+    if (r.lines.length === 0 && r.sockets.size === 0 && r.waiters.size === 0) {
+      rooms.map.delete(room);
+    }
+  };
   socket.on("close", () => { log.info("socket", `a stream closed`, roomRef(room)); drop(); });
   socket.on("error", (e) => { log.error("socket", "a stream failed", e.message); drop(); });
   log.info("socket", `a stream opened`, roomRef(room));
