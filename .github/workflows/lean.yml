@@ -85,8 +85,8 @@ jobs:
             echo "Building gokujo from source..."
             ./build.sh
           fi
-          # Run comprehensive check
-          ./gokujo check RequestProject --json > gokujo-report.json || true
+          # Run comprehensive check (strict proof gate)
+          ./gokujo check RequestProject --json > gokujo-report.json
           cat gokujo-report.json
           cd ..
 
