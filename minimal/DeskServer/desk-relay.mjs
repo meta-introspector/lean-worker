@@ -325,17 +325,10 @@ function handleDeskEndpoints(cfg, req, res, url, started, log) {
   // POST /desk/approve/promote - APPROVE: release the next layer (signed Receipt)
   if (pathname === "/desk/approve/promote" && method === "POST") {
     log.info("desk", "layer promotion approval", `${method} ${pathname}`);
-    // TODO: Parse approval, verify signature, update approvals set
-    sendJson(res, cfg, 200, {
-      ok: true,
-      approved: true,
-      receipt: {
-        height: 1,
-        tag: "approval-tag-placeholder",
-        prevHash: 0,
-        depositAmt: 0,
-        releaseAmt: 0
-      }
+    sendJson(res, cfg, 501, {
+      ok: false,
+      approved: false,
+      error: "promotion approval signature verification not yet implemented"
     });
     return true;
   }
@@ -359,12 +352,23 @@ function handleDeskEndpoints(cfg, req, res, url, started, log) {
 
 // ------------------------------------------------------------- the server
 
+function safeDecodeURIComponent(raw) {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
+}
+
 export function createServer(cfg = CONFIG, rooms = new Rooms(cfg), log = makeLogger(cfg)) {
   const server = http.createServer(async (req, res) => {
     const started = Date.now();
     const url = new URL(req.url, `http://${req.headers.host ?? "localhost"}`);
     const shown = url.pathname.replace(/^\/(room|ws)\/([^/]+)/,
-      (_, kind, room) => `/${kind}/${roomRef(decodeURIComponent(room))}`);
+      (_, kind, room) => {
+        const decoded = safeDecodeURIComponent(room);
+        return `/${kind}/${roomRef(decoded ?? room)}`;
+      });
     
     // Check if this is a desk endpoint first
     if (handleDeskEndpoints(cfg, req, res, url, started, log)) {
@@ -387,7 +391,11 @@ export function createServer(cfg = CONFIG, rooms = new Rooms(cfg), log = makeLog
 
     const m = url.pathname.match(/^\/room\/([^/]+)$/);
     if (m) {
-      const room = decodeURIComponent(m[1]);
+      const room = safeDecodeURIComponent(m[1]);
+      if (room === null) {
+        sendJson(res, cfg, 400, { ok: false, error: "malformed room URI encoding" });
+        return;
+      }
       log.info("relay", `route room ${roomRef(room)}`, `${req.method} ${shown}`);
       if (req.method === "POST") {
         let body;
@@ -511,7 +519,12 @@ function handleUpgrade(cfg, rooms, req, socket, log = { info() {}, warn() {}, er
     socket.destroy();
     return;
   }
-  const room = decodeURIComponent(m[1]);
+  const room = safeDecodeURIComponent(m[1]);
+  if (room === null) {
+    log.warn("relay", "websocket upgrade rejected", "malformed room URI encoding");
+    socket.destroy();
+    return;
+  }
   log.info("relay", "websocket upgrade", `${roomRef(room)} cursor=${url.searchParams.get("cursor") ?? 0}`);
 
   socket.write(

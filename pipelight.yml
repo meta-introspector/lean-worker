@@ -51,7 +51,9 @@ pipelines:
             if ! command -v gokujo &> /dev/null; then
               echo "Building gokujo from source..."
               cd minimal
-              lean --make Gokujo.lean -o gokujo
+              lean -o Gokujo.olean -c Gokujo.c Gokujo.lean
+              LEAN_PATH=. lean -c GokujoMain.c GokujoMain.lean
+              leanc -o gokujo Gokujo.c GokujoMain.c
               chmod +x gokujo
             fi
           - cd minimal && ./gokujo check RequestProject --json

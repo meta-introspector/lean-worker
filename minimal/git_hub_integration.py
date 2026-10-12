@@ -218,7 +218,7 @@ class GitHubIntegration:
                 "pr": None,
             }
 
-        base_branch = base or self.execute_command("git branch --show-current").get("stdout", "").strip()
+        base_branch = base or self.git_config["default_branch"]
         pr_cmd = (
             f"gh pr create --title \"{title}\" --body \"{body}\" "
             f"--head {head} --base {base_branch}"

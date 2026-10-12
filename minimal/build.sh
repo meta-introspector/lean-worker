@@ -15,7 +15,7 @@ fi
 # Compile the library (both olean for imports and C for linking) and executable
 echo "Compiling Gokujo library and native binary..."
 lean -o Gokujo.olean -c Gokujo.c Gokujo.lean
-lean -c GokujoMain.c GokujoMain.lean
+LEAN_PATH=. lean -c GokujoMain.c GokujoMain.lean
 leanc -o gokujo Gokujo.c GokujoMain.c
 
 echo "Build successful!"
