@@ -83,31 +83,36 @@ def R_param (m rad_N : Nat) : Nat :=
   let d := d_param m rad_N
   if d == 0 then 0 else rad_N / d
 
-/-- Exact minimal period T_min = m * R on the admissible residue domain gcd(a, d) = 1. -/
+/-- Exact minimal period T_min = m * R on the valid positive admissible domain (m > 0, rad_N > 0, gcd(a, d) = 1). -/
 def T_min (m rad_N : Nat) : Nat := m * (R_param m rad_N)
 
-/-- Predicate checking whether a residue class a is admissible: gcd(a, d) == 1. -/
+/-- Predicate checking whether (m, rad_N, a) lies in the valid positive-modulus
+    admissible domain: m > 0, rad_N > 0, and gcd(a, d) == 1. -/
 def is_admissible (m rad_N a : Nat) : Bool :=
-  Nat.gcd a (d_param m rad_N) == 1
+  (m > 0) && (rad_N > 0) && (Nat.gcd a (d_param m rad_N) == 1)
 
-/-- Branch-aware minimal period distinguishing admissible residues gcd(a, d) = 1 (where T = T_min = m * R)
-    from inadmissible empty branches gcd(a, d) > 1 (where s_indicator is identically false and has period 1). -/
+/-- Branch-aware positive minimal period for s_indicator:
+    - For valid admissible inputs (m > 0, rad_N > 0, gcd(a, d) = 1), returns T_min m rad_N >= 1.
+    - For inadmissible or degenerate inputs (m = 0, rad_N = 0, or gcd(a, d) > 1), s_indicator is
+      identically false and its minimal positive period is 1. -/
 def T_min_branch (m rad_N a : Nat) : Nat :=
-  let d := d_param m rad_N
-  if Nat.gcd a d == 1 then T_min m rad_N else 1
+  if is_admissible m rad_N a then T_min m rad_N else 1
 
-/-- S-set indicator: n ≡ a (mod m) and gcd(n, N) = 1. -/
+/-- S-set indicator for positive modulus m > 0 and constraint N > 0:
+    n ≡ a (mod m) and gcd(n, N) = 1. Returns false for degenerate m = 0 or N = 0. -/
 def s_indicator (N m a n : Nat) : Bool :=
-  (n % m == a % m) && (Nat.gcd n N == 1)
+  (m > 0) && (N > 0) && (n % m == a % m) && (Nat.gcd n N == 1)
 
 /-- Counts coprime elements in one minimal period along the progression a + k * m for k ∈ [0..R). -/
 def period_coprime_count (N m rad_N a : Nat) : Nat :=
-  let R := R_param m rad_N
-  ((List.range R).filter (fun k => Nat.gcd (a + k * m) N == 1)).length
+  if m == 0 || N == 0 || rad_N == 0 then 0
+  else
+    let R := R_param m rad_N
+    ((List.range R).filter (fun k => Nat.gcd (a + k * m) N == 1)).length
 
 /-- Validates exact periodicity of the indicator s_indicator over an evaluation window. -/
 def is_exact_period_window (N m a T W : Nat) : Bool :=
-  (List.range W).all (fun n => s_indicator N m a (n + T) == s_indicator N m a n)
+  (T > 0) && (List.range W).all (fun n => s_indicator N m a (n + T) == s_indicator N m a n)
 
 -- 1. Inadmissible branch: gcd(a, d) > 1 -> 0 coprimes along branch.
 theorem inadmissible_empty_criterion :
@@ -127,10 +132,11 @@ theorem indicator_factorization :
 theorem T_min_is_period (m rad_N : Nat) : m ∣ T_min m rad_N :=
   ⟨R_param m rad_N, rfl⟩
 
--- 4. Branch-aware exact periodicity: on admissible branches, T_min is the exact period; on inadmissible branches, period is 1.
+-- 4. Branch-aware exact periodicity across admissible, inadmissible, and degenerate (m = 0) domains.
 theorem T_min_branch_periodicity :
     (is_admissible 6 210 1 = true ∧ T_min_branch 6 210 1 = 210 ∧ is_exact_period_window 210 6 1 (T_min 6 210) 420 = true) ∧
-    (is_admissible 6 210 2 = false ∧ T_min_branch 6 210 2 = 1 ∧ is_exact_period_window 210 6 2 1 210 = true) := by
+    (is_admissible 6 210 2 = false ∧ T_min_branch 6 210 2 = 1 ∧ is_exact_period_window 210 6 2 1 210 = true) ∧
+    (is_admissible 0 2 1 = false ∧ T_min_branch 0 2 1 = 1 ∧ is_exact_period_window 2 0 1 1 20 = true) := by
   decide
 
 -- 5. T_min equals lcm(m, rad_N) across benchmark moduli on admissible residues.
