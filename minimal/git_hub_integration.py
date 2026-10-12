@@ -69,7 +69,7 @@ class GitHubIntegration:
                     "repo": "meta-introspector/lean-worker",
                     "token_available": False,
                 }
-        except (subprocess.TimeoutExpired, FileNotFound):
+        except (subprocess.TimeoutExpired, FileNotFoundError):
             return {
                 "authenticated": False,
                 "user": None,
@@ -81,7 +81,7 @@ class GitHubIntegration:
         try:
             subprocess.run(["git", "--version"], capture_output=True, check=True)
             print("✅ Git is available")
-        except (subprocess.CalledProcessError, FileNotFound):
+        except (subprocess.CalledProcessError, FileNotFoundError):
             print("❌ Git is not available. Please install Git.")
             sys.exit(1)
 
@@ -93,7 +93,7 @@ class GitHubIntegration:
                 print(f"✅ GitHub CLI is available: {result.stdout.strip()}")
             else:
                 print("❌ GitHub CLI is not available or not authenticated.")
-        except (subprocess.TimeoutExpired, FileNotFound):
+        except (subprocess.TimeoutExpired, FileNotFoundError):
             print("⚠️ Warning: GitHub CLI not available. Some GitHub features will be limited.")
 
     def execute_command(self, command: str, cwd: str = None) -> Dict[str, Any]:

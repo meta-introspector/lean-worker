@@ -243,12 +243,13 @@ const deskState = {
   approvals: new Set(), // set of approved layer promotions
 };
 
-function handleDeskEndpoints(cfg, res, url, started, log) {
+function handleDeskEndpoints(cfg, req, res, url, started, log) {
   const pathname = url.pathname;
+  const method = req.method;
   
   // GET /desk/board - the 21-bounty board, rendered from BountyBoard
-  if (pathname === "/desk/board" && url.method === "GET") {
-    log.info("desk", "board request", `${url.method} ${pathname}`);
+  if (pathname === "/desk/board" && method === "GET") {
+    log.info("desk", "board request", `${method} ${pathname}`);
     // TODO: Render from BountyBoard.lean (would need FFI or pre-generated data)
     sendJson(res, cfg, 200, {
       ok: true,
@@ -265,8 +266,8 @@ function handleDeskEndpoints(cfg, res, url, started, log) {
   }
 
   // POST /desk/quote - request a bilateral quote on a unit
-  if (pathname === "/desk/quote" && url.method === "POST") {
-    log.info("desk", "quote request", `${url.method} ${pathname}`);
+  if (pathname === "/desk/quote" && method === "POST") {
+    log.info("desk", "quote request", `${method} ${pathname}`);
     // TODO: Parse body, compute quote based on artifact properties
     sendJson(res, cfg, 200, {
       ok: true,
@@ -281,8 +282,8 @@ function handleDeskEndpoints(cfg, res, url, started, log) {
   }
 
   // POST /desk/ticket - post a trade ticket (Envelope, tagTrade)
-  if (pathname === "/desk/ticket" && url.method === "POST") {
-    log.info("desk", "ticket posted", `${url.method} ${pathname}`);
+  if (pathname === "/desk/ticket" && method === "POST") {
+    log.info("desk", "ticket posted", `${method} ${pathname}`);
     // TODO: Parse ticket, validate signature, store trade
     sendJson(res, cfg, 200, {
       ok: true,
@@ -293,8 +294,8 @@ function handleDeskEndpoints(cfg, res, url, started, log) {
   }
 
   // POST /desk/escrow - deposit into escrow
-  if (pathname === "/desk/escrow" && url.method === "POST") {
-    log.info("desk", "escrow deposit", `${url.method} ${pathname}`);
+  if (pathname === "/desk/escrow" && method === "POST") {
+    log.info("desk", "escrow deposit", `${method} ${pathname}`);
     // TODO: Parse deposit, create escrow record
     sendJson(res, cfg, 200, {
       ok: true,
@@ -305,9 +306,9 @@ function handleDeskEndpoints(cfg, res, url, started, log) {
   }
 
   // GET /desk/escrow/{id} - escrow state
-  if (pathname.startsWith("/desk/escrow/") && url.method === "GET") {
+  if (pathname.startsWith("/desk/escrow/") && method === "GET") {
     const id = pathname.substring("/desk/escrow/".length);
-    log.info("desk", "escrow state request", `${url.method} ${pathname} id=${id}`);
+    log.info("desk", "escrow state request", `${method} ${pathname} id=${id}`);
     // TODO: Fetch escrow state from store
     sendJson(res, cfg, 200, {
       ok: true,
@@ -322,8 +323,8 @@ function handleDeskEndpoints(cfg, res, url, started, log) {
   }
 
   // POST /desk/approve/promote - APPROVE: release the next layer (signed Receipt)
-  if (pathname === "/desk/approve/promote" && url.method === "POST") {
-    log.info("desk", "layer promotion approval", `${url.method} ${pathname}`);
+  if (pathname === "/desk/approve/promote" && method === "POST") {
+    log.info("desk", "layer promotion approval", `${method} ${pathname}`);
     // TODO: Parse approval, verify signature, update approvals set
     sendJson(res, cfg, 200, {
       ok: true,
@@ -340,9 +341,9 @@ function handleDeskEndpoints(cfg, res, url, started, log) {
   }
 
   // GET /desk/kb?q= - witnessed KB query
-  if (pathname === "/desk/kb" && url.method === "GET") {
+  if (pathname === "/desk/kb" && method === "GET") {
     const query = url.searchParams.get("q") || "";
-    log.info("desk", "KB query", `${url.method} ${pathname} q="${query}"`);
+    log.info("desk", "KB query", `${method} ${pathname} q="${query}"`);
     // TODO: Query witnessed KB store, return matching records
     sendJson(res, cfg, 200, {
       ok: true,
@@ -366,7 +367,7 @@ export function createServer(cfg = CONFIG, rooms = new Rooms(cfg), log = makeLog
       (_, kind, room) => `/${kind}/${roomRef(decodeURIComponent(room))}`);
     
     // Check if this is a desk endpoint first
-    if (handleDeskEndpoints(cfg, res, url, started, log)) {
+    if (handleDeskEndpoints(cfg, req, res, url, started, log)) {
       return;
     }
     

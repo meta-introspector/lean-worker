@@ -6,11 +6,10 @@
     flake-utils.url = "github:numtide/flake-utils";
     lean4.url = "github:leanprover/lean4";
     mathlib4.url = "github:leanprover-community/mathlib4";
-    gokujo = self;
     pipelight.url = "github:pipelight/pipelight";
   };
 
-  outputs = { self, nixpkgs, flake-utils, lean4, mathlib4, gokujo, pipelight }:
+  outputs = { self, nixpkgs, flake-utils, lean4, mathlib4, pipelight }:
     flake-utils.lib.eachDefaultSystem (system: let
       pkgs = nixpkgs.legacyPackages.${system};
       lean = pkgs.lean4;

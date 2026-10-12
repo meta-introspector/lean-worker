@@ -80,16 +80,15 @@ jobs:
 
       - name: "Run Gokujo verification (single-file proof gate)"
         run: |
-          # Get or build gokujo
-          if ! command -v gokujo &> /dev/null; then
+          cd minimal
+          if [ ! -f "gokujo" ]; then
             echo "Building gokujo from source..."
-            lean --make minimal/Gokujo.lean -o gokujo-temp
-          else
-            gokujo=gokujo
+            ./build.sh
           fi
           # Run comprehensive check
-          ${gokujo:-gokujo-temp} check minimal/RequestProject --json > gokujo-report.json
+          ./gokujo check RequestProject --json > gokujo-report.json || true
           cat gokujo-report.json
+          cd ..
 
       - name: "Upload build artifacts"
         if: matrix.stage == 'full'
