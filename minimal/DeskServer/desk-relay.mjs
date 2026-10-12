@@ -284,11 +284,10 @@ function handleDeskEndpoints(cfg, req, res, url, started, log) {
   // POST /desk/ticket - post a trade ticket (Envelope, tagTrade)
   if (pathname === "/desk/ticket" && method === "POST") {
     log.info("desk", "ticket posted", `${method} ${pathname}`);
-    // TODO: Parse ticket, validate signature, store trade
-    sendJson(res, cfg, 200, {
-      ok: true,
-      tradeId: `trade_${Date.now()}`,
-      received: true
+    sendJson(res, cfg, 501, {
+      ok: false,
+      received: false,
+      error: "trade ticket persistence not yet implemented"
     });
     return true;
   }
@@ -296,11 +295,10 @@ function handleDeskEndpoints(cfg, req, res, url, started, log) {
   // POST /desk/escrow - deposit into escrow
   if (pathname === "/desk/escrow" && method === "POST") {
     log.info("desk", "escrow deposit", `${method} ${pathname}`);
-    // TODO: Parse deposit, create escrow record
-    sendJson(res, cfg, 200, {
-      ok: true,
-      escrowId: `escrow_${Date.now()}`,
-      deposited: true
+    sendJson(res, cfg, 501, {
+      ok: false,
+      deposited: false,
+      error: "escrow deposit persistence not yet implemented"
     });
     return true;
   }
@@ -485,7 +483,7 @@ function wsFrame(text) {
 }
 
 /** Pull whole frames out of a buffer; returns how many bytes were used. */
-function wsFrames(buf) {
+function wsFrames(buf, maxPayload = 1024 * 1024) {
   const out = [];
   let off = 0;
   while (off + 2 <= buf.length) {
@@ -497,8 +495,11 @@ function wsFrames(buf) {
     if (len === 126) { if (p + 2 > buf.length) break; len = buf.readUInt16BE(p); p += 2; }
     else if (len === 127) {
       if (p + 8 > buf.length) break;
-      len = Number(buf.readBigUInt64BE(p)); p += 8;
+      const bigLen = buf.readBigUInt64BE(p);
+      if (bigLen > BigInt(maxPayload)) return { frames: out, used: off, oversized: true };
+      len = Number(bigLen); p += 8;
     }
+    if (len > maxPayload) return { frames: out, used: off, oversized: true };
     let mask = null;
     if (masked) { if (p + 4 > buf.length) break; mask = buf.subarray(p, p + 4); p += 4; }
     if (p + len > buf.length) break;
@@ -507,7 +508,7 @@ function wsFrames(buf) {
     off = p + len;
     out.push({ opcode, data });
   }
-  return { frames: out, used: off };
+  return { frames: out, used: off, oversized: false };
 }
 
 function handleUpgrade(cfg, rooms, req, socket, log = { info() {}, warn() {}, error() {} }) {
@@ -548,8 +549,18 @@ function handleUpgrade(cfg, rooms, req, socket, log = { info() {}, warn() {}, er
 
   let pending = Buffer.alloc(0);
   socket.on("data", (chunk) => {
+    if (pending.length + chunk.length > cfg.maxBody) {
+      log.warn("socket", "websocket buffer exceeded maxBody", roomRef(room));
+      socket.destroy();
+      return;
+    }
     pending = Buffer.concat([pending, chunk]);
-    const { frames, used } = wsFrames(pending);
+    const { frames, used, oversized } = wsFrames(pending, cfg.maxBody);
+    if (oversized) {
+      log.warn("socket", "websocket frame exceeded maxBody", roomRef(room));
+      socket.destroy();
+      return;
+    }
     pending = pending.subarray(used);
     for (const { opcode, data } of frames) {
       if (opcode === 0x8) { socket.end(); return; }

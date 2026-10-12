@@ -171,9 +171,9 @@ class GitHubIntegration:
             return []
         stdout = status_result.get("stdout", "")
         return [
-            line.strip().split(" ")[0]
+            line.strip().split(maxsplit=1)[1]
             for line in stdout.split("\n")
-            if line.strip() and line.strip()[0] == "??"
+            if line.strip().startswith("?? ") and len(line.strip().split(maxsplit=1)) > 1
         ]
 
     def push_changes(
@@ -211,14 +211,15 @@ class GitHubIntegration:
         reviewers: List[str] = None,
     ) -> Dict[str, Any]:
         """Create a pull request on GitHub."""
+        base_branch = base or self.git_config["default_branch"]
         if not self.gh_config.get("authenticated"):
             return {
                 "success": False,
-                "error": "Not authenticated to GitHub. Run 'gh auth login' first.",
+                "error": "Not authenticated to GitHub (run 'gh auth login' first).",
                 "pr": None,
+                "base": base_branch,
             }
 
-        base_branch = base or self.git_config["default_branch"]
         pr_cmd = (
             f"gh pr create --title \"{title}\" --body \"{body}\" "
             f"--head {head} --base {base_branch}"
@@ -250,9 +251,9 @@ class GitHubIntegration:
     def get_pr_info(self, pr_number: int = None, head: str = None) -> Dict[str, Any]:
         """Get pull request information."""
         if pr_number:
-            cmd = f"gh pr view {pr_number} --json title,body,state,head_ref,base_ref --jq '. | @base64'"
+            cmd = f"gh pr view {pr_number} --json title,body,state,headRefName,baseRefName --jq '. | @base64'"
         elif head:
-            cmd = f"gh pr view {head} --json title,body,state,head_ref,base_ref --jq '. | @base64'"
+            cmd = f"gh pr view {head} --json title,body,state,headRefName,baseRefName --jq '. | @base64'"
         else:
             return {
                 "success": False,
@@ -312,8 +313,8 @@ class GitHubIntegration:
     def create_branch(self, branch_name: str, start_point: str = None) -> Dict[str, Any]:
         """Create a new branch."""
         start = start_point or "HEAD"
-        cmd = f"git branch {branch_name} {start}"
-        checkout_result = self.execute_command(f"git checkout {branch_name}")
+        cmd = f"git checkout -b {branch_name} {start}"
+        checkout_result = self.execute_command(cmd)
         return {
             "success": checkout_result.get("success", False),
             "command": cmd,
