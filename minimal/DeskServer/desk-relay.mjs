@@ -42,13 +42,13 @@ for (let i = 2; i < process.argv.length; i += 1) {
  *  A library keeps quiet unless it is given a log file. */
 const isMain = process.argv[1] && import.meta.url === `file://${path.resolve(process.argv[1])}`;
 
-const posInt = (raw, fallback) => {
+const posInt = (raw, fallback, max = Infinity) => {
   const n = Number(raw);
-  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : fallback;
+  return Number.isFinite(n) && n >= 1 && n <= max ? Math.floor(n) : fallback;
 };
 
 export const CONFIG = {
-  port: posInt(args.get("port") ?? process.env.PORT, 8787),
+  port: posInt(args.get("port") ?? process.env.PORT, 8787, 65535),
   host: args.get("host") ?? process.env.HOST ?? "0.0.0.0",
   staticDir: args.get("static") ?? process.env.KANT_STATIC ?? "",
   origin: args.get("origin") ?? process.env.KANT_ORIGIN ?? "*",
