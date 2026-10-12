@@ -545,7 +545,7 @@ export function createServer(cfg = CONFIG, rooms = new Rooms(cfg), log = makeLog
         const wait = Math.min(Number(url.searchParams.get("wait") ?? 0) || 0, 60);
         log.info("relay", `fetch room`, `${roomRef(room)} cursor=${cursor} wait=${wait}s`);
         let out = rooms.fetch(room, cursor);
-        if (wait > 0 && out.lines.length === 0) {
+        if (wait > 0 && out.lines.length === 0 && !out.truncated) {
           log.info("relay", `waiting for room`, `${roomRef(room)} cursor=${cursor} wait=${wait}s`);
           try {
             await rooms.wait(room, wait * 1000, res);
