@@ -719,7 +719,7 @@ function handleUpgrade(cfg, rooms, req, socket, log = { info() {}, warn() {}, er
   const state = {
     cursor: Number(url.searchParams.get("cursor") ?? 0) || 0,
     push(out) {
-      if (out.lines.length === 0) { state.cursor = out.cursor; return; }
+      if (out.lines.length === 0 && !out.truncated) { state.cursor = out.cursor; return; }
       const frame = wsFrame(JSON.stringify({ ok: true, ...out }));
       if (socket.writableLength > cfg.maxBody * 4) {
         log.warn("socket", "websocket outbound buffer exceeded limit", roomRef(room));
