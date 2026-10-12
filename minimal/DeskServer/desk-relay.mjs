@@ -146,18 +146,31 @@ export class Rooms {
     const r = this.room(name);
     const maxBytes = this.cfg.maxBody ?? 1048576;
     const maxTotal = this.cfg.maxTotalBytes ?? 64 * 1024 * 1024;
-    for (const l of lines) {
+    const batch = lines.length > this.cfg.maxLines
+      ? lines.slice(lines.length - this.cfg.maxLines)
+      : lines;
+    const skipped = lines.length - batch.length;
+    r.base += skipped;
+    for (const l of batch) {
       const b = Buffer.byteLength(l, "utf8");
       r.lines.push(l);
       r.bytes += b;
       this.totalBytes += b;
     }
-    while (r.lines.length > this.cfg.maxLines || (r.bytes > maxBytes && r.lines.length > 0)) {
-      const removed = r.lines.shift();
-      const b = Buffer.byteLength(removed, "utf8");
-      r.bytes -= b;
-      this.totalBytes = Math.max(0, this.totalBytes - b);
-      r.base += 1;
+    let drop = Math.max(0, r.lines.length - this.cfg.maxLines);
+    let droppedBytes = 0;
+    for (let i = 0; i < drop; i++) {
+      droppedBytes += Buffer.byteLength(r.lines[i], "utf8");
+    }
+    while (drop < r.lines.length && r.bytes - droppedBytes > maxBytes) {
+      droppedBytes += Buffer.byteLength(r.lines[drop], "utf8");
+      drop += 1;
+    }
+    if (drop > 0) {
+      r.lines.splice(0, drop);
+      r.bytes -= droppedBytes;
+      this.totalBytes = Math.max(0, this.totalBytes - droppedBytes);
+      r.base += drop;
     }
     if (this.totalBytes > maxTotal) {
       this.sweep();
@@ -168,12 +181,19 @@ export class Rooms {
         this.deleteRoom(k);
       }
     }
-    while (this.totalBytes > maxTotal && r.lines.length > 0) {
-      const removed = r.lines.shift();
-      const b = Buffer.byteLength(removed, "utf8");
-      r.bytes -= b;
-      this.totalBytes = Math.max(0, this.totalBytes - b);
-      r.base += 1;
+    if (this.totalBytes > maxTotal && r.lines.length > 0) {
+      let extraDrop = 0;
+      let extraBytes = 0;
+      while (extraDrop < r.lines.length && this.totalBytes - extraBytes > maxTotal) {
+        extraBytes += Buffer.byteLength(r.lines[extraDrop], "utf8");
+        extraDrop += 1;
+      }
+      if (extraDrop > 0) {
+        r.lines.splice(0, extraDrop);
+        r.bytes -= extraBytes;
+        this.totalBytes = Math.max(0, this.totalBytes - extraBytes);
+        r.base += extraDrop;
+      }
     }
     const cursor = r.base + r.lines.length;
     for (const w of [...r.waiters]) { r.waiters.delete(w); w(); }
