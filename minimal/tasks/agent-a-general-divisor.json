@@ -11,7 +11,8 @@
   ],
   "invariants": {
     "framework": "VolkanBridge",
-    "minimal_periodicity": "lcm(m, rad(N))",
+    "minimal_periodicity_admissible": "lcm(m, rad(N)) for gcd(a, d) = 1",
+    "minimal_periodicity_inadmissible": "1 (empty branch for gcd(a, d) > 1)",
     "checks_automated": 2287,
     "checks_status": "PASS"
   },
@@ -27,6 +28,7 @@
     "GeneralDivisorTheorem.inadmissible_empty_criterion",
     "GeneralDivisorTheorem.indicator_factorization",
     "GeneralDivisorTheorem.T_min_is_period",
+    "GeneralDivisorTheorem.T_min_branch_periodicity",
     "GeneralDivisorTheorem.T_min_eq_lcm",
     "GeneralDivisorTheorem.exponent_blindness",
     "GeneralDivisorTheorem.C_factor_prime_product",
