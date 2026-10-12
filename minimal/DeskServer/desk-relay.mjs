@@ -476,10 +476,22 @@ function safeDecodeURIComponent(raw) {
   }
 }
 
+function safeParseUrl(req) {
+  try {
+    return new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+  } catch {
+    return null;
+  }
+}
+
 export function createServer(cfg = CONFIG, rooms = new Rooms(cfg), log = makeLogger(cfg)) {
   const server = http.createServer(async (req, res) => {
     const started = Date.now();
-    const url = new URL(req.url, `http://${req.headers.host ?? "localhost"}`);
+    const url = safeParseUrl(req);
+    if (!url) {
+      sendJson(res, cfg, 400, { ok: false, error: "bad request url" });
+      return;
+    }
     const shown = url.pathname.replace(/^\/(room|ws)\/([^/]+)/,
       (_, kind, room) => {
         const decoded = safeDecodeURIComponent(room);
@@ -646,8 +658,8 @@ function wsFrames(buf, maxPayload = 1024 * 1024) {
 }
 
 function handleUpgrade(cfg, rooms, req, socket, log = { info() {}, warn() {}, error() {} }) {
-  const url = new URL(req.url, `http://${req.headers.host ?? "localhost"}`);
-  const m = url.pathname.match(/^\/ws\/([^/]+)$/);
+  const url = safeParseUrl(req);
+  const m = url ? url.pathname.match(/^\/ws\/([^/]+)$/) : null;
   const key = req.headers["sec-websocket-key"];
   if (!m || !key) {
     log.warn("relay", "websocket upgrade rejected", "missing room or key");
