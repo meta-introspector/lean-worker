@@ -31,7 +31,8 @@ roots = [
   "repo_headers", "shard_tools", "shmem_dedup", "shmem_optimize", "shmem_warm",
   "spec_to_proof", "spool", "spool_source", "tantivy_indexer", "task_manager",
   "test_tag_42", "tokenizer", "zombie_driver", "zos_a11y_gui", "zos_github_manager",
-  "zos_noc_manager", "zos_plugin_generators"
+  "zos_noc_manager", "zos_plugin_generators",
+  "umbral_moonshine", "general_divisor"
 ]
 
 [[lean_exe]]
