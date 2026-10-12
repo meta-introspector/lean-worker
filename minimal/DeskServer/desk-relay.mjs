@@ -119,7 +119,8 @@ export class Rooms {
       }
       if (this.map.size >= maxRooms) {
         for (const [k, candidate] of this.map) {
-          if (candidate.sockets.size === 0 && candidate.waiters.size === 0) {
+          if (candidate.lines.length === 0 && candidate.base === 0 &&
+              candidate.sockets.size === 0 && candidate.waiters.size === 0) {
             this.deleteRoom(k);
             break;
           }
@@ -175,10 +176,13 @@ export class Rooms {
     if (this.totalBytes > maxTotal) {
       this.sweep();
     }
-    for (const [k, candidate] of this.map) {
+    for (const [, candidate] of this.map) {
       if (this.totalBytes <= maxTotal) break;
-      if (candidate !== r && candidate.sockets.size === 0 && candidate.waiters.size === 0) {
-        this.deleteRoom(k);
+      if (candidate !== r && candidate.sockets.size === 0 && candidate.waiters.size === 0 && candidate.lines.length > 0) {
+        candidate.base += candidate.lines.length;
+        this.totalBytes = Math.max(0, this.totalBytes - candidate.bytes);
+        candidate.bytes = 0;
+        candidate.lines.length = 0;
       }
     }
     if (this.totalBytes > maxTotal && r.lines.length > 0) {
@@ -225,13 +229,13 @@ export class Rooms {
         clearTimeout(timer);
         if (stream) stream.off?.("close", done);
         r.waiters.delete(done);
-        if (r.lines.length === 0 && r.sockets.size === 0 && r.waiters.size === 0) {
+        if (r.lines.length === 0 && r.base === 0 && r.sockets.size === 0 && r.waiters.size === 0) {
           this.deleteRoom(String(name));
         }
         resolve();
       };
       if (stream?.destroyed || stream?.writableEnded) {
-        if (r.lines.length === 0 && r.sockets.size === 0 && r.waiters.size === 0) {
+        if (r.lines.length === 0 && r.base === 0 && r.sockets.size === 0 && r.waiters.size === 0) {
           this.deleteRoom(String(name));
         }
         resolve();
@@ -704,6 +708,7 @@ function handleUpgrade(cfg, rooms, req, socket, log = { info() {}, warn() {}, er
   let pending = Buffer.alloc(0);
   let fragChunks = [];
   let fragBytes = 0;
+  let fragCount = 0;
   let inTextFrag = false;
 
   socket.on("data", (chunk) => {
@@ -735,20 +740,23 @@ function handleUpgrade(cfg, rooms, req, socket, log = { info() {}, warn() {}, er
           handleTextMessage(data);
         } else {
           inTextFrag = true;
-          fragChunks = [data];
+          fragChunks = data.length > 0 ? [data] : [];
           fragBytes = data.length;
+          fragCount = 1;
         }
       } else if (opcode === 0x0) {
-        if (!inTextFrag || fragBytes + data.length > cfg.maxBody) {
+        if (!inTextFrag || fragCount >= 64 || fragBytes + data.length > cfg.maxBody) {
           socket.destroy();
           return;
         }
-        fragChunks.push(data);
+        if (data.length > 0) fragChunks.push(data);
         fragBytes += data.length;
+        fragCount += 1;
         if (fin) {
           const full = Buffer.concat(fragChunks);
           fragChunks = [];
           fragBytes = 0;
+          fragCount = 0;
           inTextFrag = false;
           handleTextMessage(full);
         }
@@ -758,7 +766,7 @@ function handleUpgrade(cfg, rooms, req, socket, log = { info() {}, warn() {}, er
 
   const drop = () => {
     r.sockets.delete(state);
-    if (r.lines.length === 0 && r.sockets.size === 0 && r.waiters.size === 0) {
+    if (r.lines.length === 0 && r.base === 0 && r.sockets.size === 0 && r.waiters.size === 0) {
       rooms.deleteRoom(String(room));
     }
   };
