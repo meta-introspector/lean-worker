@@ -197,20 +197,29 @@ export class Rooms {
     };
   }
 
-  /** Resolve when something is posted, or after `ms`. */
-  wait(name, ms) {
+  /** Resolve when something is posted, after `ms`, or when `stream` closes. */
+  wait(name, ms, stream = null) {
     const r = this.room(name);
     return new Promise((resolve) => {
       const done = () => {
         clearTimeout(timer);
+        if (stream) stream.off?.("close", done);
         r.waiters.delete(done);
         if (r.lines.length === 0 && r.sockets.size === 0 && r.waiters.size === 0) {
           this.deleteRoom(String(name));
         }
         resolve();
       };
+      if (stream?.destroyed || stream?.writableEnded) {
+        if (r.lines.length === 0 && r.sockets.size === 0 && r.waiters.size === 0) {
+          this.deleteRoom(String(name));
+        }
+        resolve();
+        return;
+      }
       const timer = setTimeout(done, ms);
       r.waiters.add(done);
+      if (stream) stream.once?.("close", done);
     });
   }
 
@@ -515,12 +524,13 @@ export function createServer(cfg = CONFIG, rooms = new Rooms(cfg), log = makeLog
         if (wait > 0 && out.lines.length === 0) {
           log.info("relay", `waiting for room`, `${roomRef(room)} cursor=${cursor} wait=${wait}s`);
           try {
-            await rooms.wait(room, wait * 1000);
+            await rooms.wait(room, wait * 1000, res);
           } catch (e) {
             log.warn("relay", "room capacity reached on wait", `${roomRef(room)}: ${e.message}`);
             sendJson(res, cfg, 503, { ok: false, error: "room capacity reached" });
             return;
           }
+          if (res.destroyed || res.writableEnded) return;
           out = rooms.fetch(room, cursor);
         }
         log.info("relay", `fetched room`, `${roomRef(room)} cursor=${cursor} -> ${out.cursor} lines=${out.lines.length} truncated=${out.truncated}`);
