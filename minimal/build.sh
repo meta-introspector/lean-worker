@@ -12,9 +12,9 @@ if [ ! -f "Gokujo.lean" ]; then
     exit 1
 fi
 
-# Compile the library and executable C code
-echo "Compiling Gokujo C bindings and native binary..."
-lean -c Gokujo.c Gokujo.lean
+# Compile the library (both olean for imports and C for linking) and executable
+echo "Compiling Gokujo library and native binary..."
+lean -o Gokujo.olean -c Gokujo.c Gokujo.lean
 lean -c GokujoMain.c GokujoMain.lean
 leanc -o gokujo Gokujo.c GokujoMain.c
 
