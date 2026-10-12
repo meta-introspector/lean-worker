@@ -127,6 +127,19 @@ export class Rooms {
         }
       }
       if (this.map.size >= maxRooms) {
+        for (const [k, candidate] of this.map) {
+          if (candidate.lines.length === 0 && candidate.base === 0 &&
+              candidate.sockets.size === 0) {
+            for (const w of [...candidate.waiters]) {
+              candidate.waiters.delete(w);
+              w();
+            }
+            this.deleteRoom(k);
+            break;
+          }
+        }
+      }
+      if (this.map.size >= maxRooms) {
         throw new Error("room capacity reached");
       }
       const created = { base: 0, bytes: 0, lines: [], waiters: new Set(), sockets: new Set(), touched: Date.now() };
