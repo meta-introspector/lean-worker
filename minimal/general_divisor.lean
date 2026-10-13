@@ -75,6 +75,9 @@ end PluginContexts
 
 namespace GeneralDivisorTheorem
 
+set_option maxRecDepth 100000
+set_option maxHeartbeats 800000
+
 /-- Computable primality test on Nat via bounded trial division. -/
 def is_prime_nat (p : Nat) : Bool :=
   (p >= 2) && ((List.range (p - 2)).all (fun i => p % (i + 2) != 0))
