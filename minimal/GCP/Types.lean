@@ -9,25 +9,25 @@ namespace GCP
 -- ============================================
 
 -- GCP Project ID
-def ProjectId := String
+abbrev ProjectId := String
 
 -- GCP Region
-def Region := String
+abbrev Region := String
 
 -- GCP Access Token
-def AccessToken := String
+abbrev AccessToken := String
 
 -- GCP API Key
-def APIKey := String
+abbrev APIKey := String
 
 -- GCP Request ID
-def RequestId := String
+abbrev RequestId := String
 
 -- ISO 8601 Timestamp
-def ISO8601Timestamp := String
+abbrev ISO8601Timestamp := String
 
 -- Unix Timestamp
-def UnixTimestamp := Nat
+abbrev UnixTimestamp := Nat
 
 -- ============================================
 -- GCP Service Types
@@ -57,10 +57,10 @@ inductive Service
 -- ============================================
 
 -- Cloud Function Name
-def CloudFunctionName := String
+abbrev CloudFunctionName := String
 
 -- Cloud Function Entry Point
-def CloudFunctionEntryPoint := String
+abbrev CloudFunctionEntryPoint := String
 
 -- Cloud Function Trigger
 structure CloudFunctionTrigger where
@@ -107,7 +107,7 @@ structure CloudFunctionConfig where
 -- ============================================
 
 -- Cloud Run Service Name
-def CloudRunServiceName := String
+abbrev CloudRunServiceName := String
 
 -- Cloud Run Configuration
 structure CloudRunConfig where
@@ -133,10 +133,10 @@ structure CloudRunRevision where
 -- ============================================
 
 -- Machine Type
-def MachineType := String
+abbrev MachineType := String
 
 -- Disk Size (GB)
-def DiskSize := Nat
+abbrev DiskSize := Nat
 
 -- Disk Type
 inductive DiskType
@@ -146,30 +146,30 @@ inductive DiskType
   | LocalSSD
 
 -- Instance Config
-def InstanceConfig := String
+abbrev InstanceConfig := String
 
 -- ============================================
 -- Container Types
 -- ============================================
 
 -- Cluster Name
-def ClusterName := String
+abbrev ClusterName := String
 
 -- Node Pool Name
-def NodePoolName := String
+abbrev NodePoolName := String
 
 -- ============================================
 -- Cloud Storage Types
 -- ============================================
 
 -- Bucket Name
-def BucketName := String
+abbrev BucketName := String
 
 -- Object Name
-def ObjectName := String
+abbrev ObjectName := String
 
 -- Object Version
-def ObjectVersion := String
+abbrev ObjectVersion := String
 
 -- Bucket Storage Class
 inductive StorageClass
@@ -184,17 +184,17 @@ inductive StorageClass
 -- ============================================
 
 -- Database Version
-def DatabaseVersion := String
+abbrev DatabaseVersion := String
 
 -- Configuration Type
-def ConfigurationType := String
+abbrev ConfigurationType := String
 
 -- ============================================
 -- Cloud Logging Types
 -- ============================================
 
 -- Log Name
-def LogName := String
+abbrev LogName := String
 
 -- Log Entry
 structure LogEntry where
@@ -208,37 +208,37 @@ structure LogEntry where
 -- ============================================
 
 -- Metric Name
-def MetricName := String
+abbrev MetricName := String
 
 -- Metric Value
-def MetricValue := Double
+abbrev MetricValue := Float
 
 -- ============================================
 -- Cloud PubSub Types
 -- ============================================
 
 -- Topic Name
-def TopicName := String
+abbrev TopicName := String
 
 -- Subscription Name
-def SubscriptionName := String
+abbrev SubscriptionName := String
 
 -- ============================================
 -- Cloud Scheduler Types
 -- ============================================
 
 -- Job Name
-def JobName := String
+abbrev JobName := String
 
 -- Schedule
-def Schedule := String
+abbrev Schedule := String
 
 -- ============================================
 -- Cloud Build Types
 -- ============================================
 
 -- Build ID
-def BuildId := String
+abbrev BuildId := String
 
 -- Build Status
 inductive BuildStatus
@@ -247,24 +247,25 @@ inductive BuildStatus
   | SUCCESS
   | FAILURE
   | TIMEOUT
-  CANCELLED
+  | CANCELLED
+
+-- Build Trigger Template
+structure BuildTriggerTemplate where
+  triggerName : String
+  pauseTime   : Nat
+  retry       : Bool
 
 -- Build Trigger
 structure BuildTrigger where
   triggerId     : String
   triggerTemplate : BuildTriggerTemplate
 
-structure BuildTriggerTemplate where
-  triggerName : String
-  pauseTime   : Nat
-  retry       : Bool
-
 -- ============================================
 -- Artifact Registry Types
 -- ============================================
 
 -- Repository Name
-def RepositoryName := String
+abbrev RepositoryName := String
 
 -- Repository Format
 inductive RepositoryFormat
@@ -279,10 +280,10 @@ inductive RepositoryFormat
 -- ============================================
 
 -- Dataset Name
-def DatasetName := String
+abbrev DatasetName := String
 
 -- Table Name
-def TableName := String
+abbrev TableName := String
 
 -- Schema Field
 structure SchemaField where
@@ -296,4 +297,4 @@ structure SchemaField where
 -- ============================================
 
 -- Repository ID
-def RepositoryId := String
+abbrev RepositoryId := String

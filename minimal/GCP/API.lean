@@ -11,8 +11,7 @@ namespace API
 -- API Configuration
 -- ============================================
 
--- GCP API base URLs by service
-def getServiceUrl : Types.Service → String
+def getServiceUrl : Service → String
   | .CloudFunctions => "https://cloudfunctions.googleapis.com"
   | .CloudRun       => "https://cloudrun.googleapis.com"
   | .ComputeEngine  => "https://compute.googleapis.com"
@@ -27,12 +26,13 @@ def getServiceUrl : Types.Service → String
   | .ArtifactRegistry=> "https://artificateregistry.googleapis.com"
   | .BigQuery       => "https://bigquery.googleapis.com"
   | .CloudSourceRepositories=> "https://sourcerepo.googleapis.com"
-
+  | .CloudSchedulerJob => "https://cloudscheduler.googleapis.com"
+  
 -- GCP API configuration
 structure GCPConfig where
-  region      : Types.Region
-  accessToken : Option Types.AccessToken
-  apiKey      : Option Types.APIKey
+  region      : Region
+  accessToken : Option AccessToken
+  apiKey      : Option APIKey
   
 -- ============================================
 -- API Endpoint Types
@@ -42,31 +42,31 @@ structure GCPConfig where
 def EndpointPath := String
 
 -- API endpoint with method
-def Endpoint where
+structure Endpoint where
   method : String  -- "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD"
   path   : EndpointPath
-  service : Types.Service
+  service : Service
 
 -- ============================================
 -- Cloud Functions API Endpoints
 -- ============================================
 
 -- Deploy function
-def cloudFunctionsDeployEndpoint : Types.Region → Types.CloudFunctionConfig → Endpoint := fun region config =>
+def cloudFunctionsDeployEndpoint : Region → CloudFunctionConfig → Endpoint := fun region config =>
   { method := "POST"
   , path := "/v2/" ++ region ++ "/functions"
   , service := .CloudFunctions
   }
 
 -- Get function
-def cloudFunctionsGetEndpoint : Types.CloudFunctionName → Types.Region → Endpoint := fun name region =>
+def cloudFunctionsGetEndpoint : CloudFunctionName → String → Endpoint := fun name region =>
   { method := "GET"
   , path := "/v2/" ++ region ++ "/functions/" ++ name
   , service := .CloudFunctions
   }
 
 -- List functions
-def cloudFunctionsListEndpoint : Types.Region → Endpoint := fun region =>
+def cloudFunctionsListEndpoint : Region → Endpoint := fun region =>
   { method := "GET"
   , path := "/v2/" ++ region ++ "/functions"
   , service := .CloudFunctions
@@ -77,21 +77,21 @@ def cloudFunctionsListEndpoint : Types.Region → Endpoint := fun region =>
 -- ============================================
 
 -- Deploy service
-def cloudRunDeployEndpoint : Types.Region → Types.CloudRunConfig → Endpoint := fun region config =>
+def cloudRunDeployEndpoint : Region → CloudRunConfig → Endpoint := fun region config =>
   { method := "POST"
   , path := "/v2/" ++ region ++ "/services"
   , service := .CloudRun
   }
 
 -- Get revision
-def cloudRunGetRevisionEndpoint : Types.Region → Types.CloudRunRevision → Endpoint := fun region revision =>
+def cloudRunGetRevisionEndpoint : Region → CloudRunRevision → Endpoint := fun region revision =>
   { method := "GET"
-  , path := "/v2/" ++ region ++ "/services/" ++ revision.revisionName ++ "/revisions/" ++ (Nat.toString revision.version)
+  , path := "/v2/" ++ region ++ "/services/" ++ revision.revisionName ++ "/revisions/" ++ (Nat.repr revision.version)
   , service := .CloudRun
   }
 
 -- List revisions
-def cloudRunListRevisionsEndpoint : Types.Region → Endpoint := fun region =>
+def cloudRunListRevisionsEndpoint : Region → Endpoint := fun region =>
   { method := "GET"
   , path := "/v2/" ++ region ++ "/services"
   , service := .CloudRun
@@ -102,7 +102,7 @@ def cloudRunListRevisionsEndpoint : Types.Region → Endpoint := fun region =>
 -- ============================================
 
 -- List machines
-def computeListMachinesEndpoint : Types.Region → Endpoint := fun region =>
+def computeListMachinesEndpoint : Region → Endpoint := fun region =>
   { method := "GET"
   , path := "/"
   , service := .ComputeEngine
@@ -113,7 +113,7 @@ def computeListMachinesEndpoint : Types.Region → Endpoint := fun region =>
 -- ============================================
 
 -- List clusters
-def containerListClustersEndpoint : Types.Region → Endpoint := fun region =>
+def containerListClustersEndpoint : Region → Endpoint := fun region =>
   { method := "GET"
   , path := "/"
   , service := .Container
@@ -124,8 +124,8 @@ def containerListClustersEndpoint : Types.Region → Endpoint := fun region =>
 -- ============================================
 
 -- List objects
-def cloudStorageListObjectsEndpoint : Types.BucketName → Option Types.ObjectName → Endpoint :=
-  fun bucket prefix =>
+def cloudStorageListObjectsEndpoint : BucketName → Option ObjectName → Endpoint :=
+  fun bucket objPrefix =>
   { method := "GET"
   , path := "/"
   , service := .CloudStorage
@@ -136,7 +136,7 @@ def cloudStorageListObjectsEndpoint : Types.BucketName → Option Types.ObjectNa
 -- ============================================
 
 -- List databases
-def cloudSQLListDatabasesEndpoint : Types.Region → Endpoint := fun region =>
+def cloudSQLListDatabasesEndpoint : Region → Endpoint := fun region =>
   { method := "GET"
   , path := "/"
   , service := .CloudSQL
@@ -147,7 +147,7 @@ def cloudSQLListDatabasesEndpoint : Types.Region → Endpoint := fun region =>
 -- ============================================
 
 -- List log entries
-def cloudLoggingListLogEntriesEndpoint : Types.Region → Endpoint := fun region =>
+def cloudLoggingListLogEntriesEndpoint : Region → Endpoint := fun region =>
   { method := "GET"
   , path := "/"
   , service := .CloudLogging
@@ -158,7 +158,7 @@ def cloudLoggingListLogEntriesEndpoint : Types.Region → Endpoint := fun region
 -- ============================================
 
 -- List metrics
-def cloudMonitoringListMetricsEndpoint : Types.Region → Endpoint := fun region =>
+def cloudMonitoringListMetricsEndpoint : Region → Endpoint := fun region =>
   { method := "GET"
   , path := "/"
   , service := .CloudMonitoring
@@ -169,7 +169,7 @@ def cloudMonitoringListMetricsEndpoint : Types.Region → Endpoint := fun region
 -- ============================================
 
 -- List topics
-def cloudPubSubListTopicsEndpoint : Types.Region → Endpoint := fun region =>
+def cloudPubSubListTopicsEndpoint : Region → Endpoint := fun region =>
   { method := "GET"
   , path := "/"
   , service := .CloudPubSub
@@ -180,7 +180,7 @@ def cloudPubSubListTopicsEndpoint : Types.Region → Endpoint := fun region =>
 -- ============================================
 
 -- List jobs
-def cloudSchedulerListJobsEndpoint : Types.Region → Endpoint := fun region =>
+def cloudSchedulerListJobsEndpoint : Region → Endpoint := fun region =>
   { method := "GET"
   , path := "/"
   , service := .CloudScheduler
@@ -191,7 +191,7 @@ def cloudSchedulerListJobsEndpoint : Types.Region → Endpoint := fun region =>
 -- ============================================
 
 -- List builds
-def cloudBuildListBuildsEndpoint : Types.Region → Endpoint := fun region =>
+def cloudBuildListBuildsEndpoint : Region → Endpoint := fun region =>
   { method := "GET"
   , path := "/"
   , service := .CloudBuild
@@ -202,7 +202,7 @@ def cloudBuildListBuildsEndpoint : Types.Region → Endpoint := fun region =>
 -- ============================================
 
 -- List repositories
-def artifactRegistryListRepositoriesEndpoint : Types.Region → Endpoint := fun region =>
+def artifactRegistryListRepositoriesEndpoint : Region → Endpoint := fun region =>
   { method := "GET"
   , path := "/"
   , service := .ArtifactRegistry
@@ -213,7 +213,7 @@ def artifactRegistryListRepositoriesEndpoint : Types.Region → Endpoint := fun 
 -- ============================================
 
 -- List datasets
-def bigQueryListDatasetsEndpoint : Types.Region → Endpoint := fun region =>
+def bigQueryListDatasetsEndpoint : Region → Endpoint := fun region =>
   { method := "GET"
   , path := "/"
   , service := .BigQuery
@@ -224,7 +224,7 @@ def bigQueryListDatasetsEndpoint : Types.Region → Endpoint := fun region =>
 -- ============================================
 
 -- List repositories
-def cloudSourceRepositoriesListRepositoriesEndpoint : Types.Region → Endpoint := fun region =>
+def cloudSourceRepositoriesListRepositoriesEndpoint : Region → Endpoint := fun region =>
   { method := "GET"
   , path := "/"
   , service := .CloudSourceRepositories
