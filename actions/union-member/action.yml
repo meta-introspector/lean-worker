@@ -31,9 +31,9 @@ inputs:
     required: false
     default: "Union member"
   site-url:
-    description: "Base URL of the union site."
+    description: "Base URL of the union site (its GitHub Pages URL)."
     required: false
-    default: "https://lean-workers-union.github.io"
+    default: "https://meta-introspector.github.io/lean-workers-union"
   submit:
     description: "Open the admission issue automatically (requires union-token)."
     required: false
