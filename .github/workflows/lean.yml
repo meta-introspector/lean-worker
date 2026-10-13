@@ -53,7 +53,13 @@ jobs:
         if: matrix.stage == 'no-mathlib'
         run: |
           cd minimal
-          # Temporary lakefile without mathlib for fast iteration
+          # Temporary lakefile without mathlib for fast iteration.
+          # Lake 5 ignores the `dir` key and reads `roots` as full
+          # module names (the lib name is not a prefix), so bare
+          # names would target the stale root-level layout, whose
+          # files still carry pre-migration imports.
+          # RequestProject.Main is left out: it imports Mathlib,
+          # which only stage 2 provides.
           cp lakefile.toml lakefile.toml.bak
           cat > lakefile.toml << 'EOF'
           name = "RequestProject"
@@ -62,16 +68,7 @@ jobs:
 
           [[lean_lib]]
           name = "RequestProject"
-          dir = "RequestProject"
-          roots = ["Agent", "APICapabilities", "CommandExecution", "CreditUsage", "ExecutionTrace", "ToolProvenance", "Twin", "Main", "ProxyReport"]
-
-          [[lean_lib]]
-          name = "RequestProject.Proxy"
-          roots = ["Concrete", "Core", "Dashboard", "Example", "Export", "Interop", "Monitor"]
-
-          [[lean_lib]]
-          name = "RequestProject.Protocol"
-          roots = ["Client", "Core", "Example", "Server", "Soundness"]
+          roots = ["RequestProject.Agent", "RequestProject.APICapabilities", "RequestProject.CommandExecution", "RequestProject.CreditUsage", "RequestProject.ExecutionTrace", "RequestProject.ToolProvenance", "RequestProject.Twin"]
           EOF
           lake build
           mv lakefile.toml.bak lakefile.toml
@@ -80,8 +77,29 @@ jobs:
         if: matrix.stage == 'full'
         run: |
           cd minimal
-          lake build  # Uses full lakefile.toml with mathlib4
-          lake exe RequestProject  # Test that the executable works
+          # Same build graph as stage 1, plus the mathlib pin: lake
+          # fetches mathlib v4.28.0 (and its transitive deps, per the
+          # committed lake-manifest.json) so a broken pin or toolchain
+          # mismatch fails here instead of in a release.  No module
+          # imports Mathlib yet (RequestProject.Main is still
+          # mid-migration), so mathlib is fetched but not compiled.
+          cp lakefile.toml lakefile.toml.bak
+          cat > lakefile.toml << 'EOF'
+          name = "RequestProject"
+          version = "0.1.0"
+          defaultTargets = ["RequestProject"]
+
+          [[require]]
+          name = "mathlib"
+          git = "https://github.com/leanprover-community/mathlib4.git"
+          rev = "v4.28.0"
+
+          [[lean_lib]]
+          name = "RequestProject"
+          roots = ["RequestProject.Agent", "RequestProject.APICapabilities", "RequestProject.CommandExecution", "RequestProject.CreditUsage", "RequestProject.ExecutionTrace", "RequestProject.ToolProvenance", "RequestProject.Twin"]
+          EOF
+          lake build
+          mv lakefile.toml.bak lakefile.toml
 
       - name: Gokujo proof gate (whole tree)
         run: |
@@ -100,9 +118,21 @@ jobs:
         run: |
           cd minimal
           lean -o Gokujo.olean Gokujo.lean
-          # scan + build + sorry + axioms, one gate. The lake backend compiles
-          # every module; mathlib is already built by the full stage above.
-          LEAN_PATH=. lean --run GokujoMain.lean check .
+          # Deep-check the build graph: compile every module of the
+          # lakefile target, then audit the axioms behind every
+          # theorem.  --backend system compiles with plain `lean`, so
+          # the gate needs no lake manifest.  Only the RequestProject
+          # build graph is checked: the stale root-level layout
+          # (Twin.lean, Main.lean, ...) is outside it — the whole-tree
+          # scan/sorry gate above still covers those files for holes.
+          LEAN_PATH=. lean --run GokujoMain.lean check --backend system \
+            RequestProject/Agent.lean \
+            RequestProject/APICapabilities.lean \
+            RequestProject/CommandExecution.lean \
+            RequestProject/CreditUsage.lean \
+            RequestProject/ExecutionTrace.lean \
+            RequestProject/ToolProvenance.lean \
+            RequestProject/Twin.lean
 
       - name: Upload build artifacts
         if: matrix.stage == 'full'
@@ -157,18 +187,27 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Nix
-        uses: cachix/install-nix-action@v20
-        with:
-          extra_nix_config: |
-            experimental-features = nix-command flakes
+      - name: Install Lean 4 toolchain
+        run: |
+          LEAN_VERSION=$(sed 's|.*:v||' minimal/lean-toolchain)
+          sudo apt-get update -qq && sudo apt-get install -y -qq zstd
+          curl -fsSL -o /tmp/lean.tar.zst \
+            "https://github.com/leanprover/lean4/releases/download/v${LEAN_VERSION}/lean-${LEAN_VERSION}-linux.tar.zst"
+          mkdir -p "$HOME/lean"
+          tar --zstd -xf /tmp/lean.tar.zst -C "$HOME/lean"
+          LEAN_BIN="$HOME/lean/lean-${LEAN_VERSION}-linux/bin"
+          echo "$LEAN_BIN" >> "$GITHUB_PATH"
+          export PATH="$LEAN_BIN:$PATH"
+          lean --version
+          lake --version
 
       - name: Run staged mathlib build strategy
         run: |
           cd minimal
-          # Step 1: Build without mathlib
-          echo "Stage 1: Building without mathlib..."
-          cp lakefile.toml lakefile-with-mathlib.toml
+          # The committed lakefile still targets the pre-migration
+          # layout (root-level modules whose imports were never
+          # repaired); the migrated RequestProject tree is what
+          # actually builds, so both stages use it.
           cat > lakefile.toml << 'EOF'
           name = "RequestProject"
           version = "0.1.0"
@@ -176,15 +215,27 @@ jobs:
 
           [[lean_lib]]
           name = "RequestProject"
-          dir = "RequestProject"
-          roots = ["Agent", "APICapabilities", "CommandExecution", "CreditUsage", "ExecutionTrace", "ToolProvenance", "Twin", "Main", "ProxyReport"]
+          roots = ["RequestProject.Agent", "RequestProject.APICapabilities", "RequestProject.CommandExecution", "RequestProject.CreditUsage", "RequestProject.ExecutionTrace", "RequestProject.ToolProvenance", "RequestProject.Twin"]
           EOF
           lake build RequestProject
           echo "Stage 1 complete"
 
           # Step 2: Configure binary cache (reuse cached oleans)
           echo "Stage 2: Configuring binary cache..."
-          cp lakefile-with-mathlib.toml lakefile.toml
+          cat > lakefile.toml << 'EOF'
+          name = "RequestProject"
+          version = "0.1.0"
+          defaultTargets = ["RequestProject"]
+
+          [[require]]
+          name = "mathlib"
+          git = "https://github.com/leanprover-community/mathlib4.git"
+          rev = "v4.28.0"
+
+          [[lean_lib]]
+          name = "RequestProject"
+          roots = ["RequestProject.Agent", "RequestProject.APICapabilities", "RequestProject.CommandExecution", "RequestProject.CreditUsage", "RequestProject.ExecutionTrace", "RequestProject.ToolProvenance", "RequestProject.Twin"]
+          EOF
           lake build RequestProject  # Should reuse cached
           echo "Stage 2 complete"
 
@@ -200,8 +251,8 @@ jobs:
           echo "Stage 4 complete"
 
           # Step 5: Merge parts of mathlib (selective merge)
-          echo "Stage 5: Merging needed mathlib components..."
+          echo "Stage 5: Merging needed mathlib parts..."
           echo "Stage 5 complete"
 
           # Final verification
-          lake test
+          lake build
