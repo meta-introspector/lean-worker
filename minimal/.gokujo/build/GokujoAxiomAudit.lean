@@ -1,0 +1,33 @@
+import Gokujo
+
+#print axioms Gokujo.Lex.scanBlock_append
+#print axioms Gokujo.Lex.scanStr_append
+#print axioms Gokujo.Lex.nextTok_append
+#print axioms Gokujo.Lex.nextTok_ne_nil
+#print axioms Gokujo.Lex.nextTok_lt
+#print axioms Gokujo.Lex.nextTok_none
+#print axioms Gokujo.Lex.tokenize_faithful
+#print axioms Gokujo.Lex.tokenizeAux_eq
+#print axioms Gokujo.Lex.tokenize_eq_tokenizeTR
+#print axioms Gokujo.Lex.withLinesAux_eq
+#print axioms Gokujo.Lex.withLines_eq_withLinesTR
+#print axioms Gokujo.Syn.locateAux_eq
+#print axioms Gokujo.Syn.locate_eq_locateTR
+#print axioms Gokujo.Syn.commandsAuxTRGo_eq
+#print axioms Gokujo.Syn.commandsAux_eq_commandsAuxTR
+#print axioms Gokujo.Syn.mem_of_mem_takeWhile
+#print axioms Gokujo.Syn.mem_of_mem_dropWhile
+#print axioms Gokujo.Syn.occurrencesAux_sound
+#print axioms Gokujo.Syn.occurrences_sound
+#print axioms Gokujo.Syn.codeToks_not_trivia
+#print axioms Gokujo.Syn.commandsAux_mem
+#print axioms Gokujo.Syn.reported_holes_are_code
+#print axioms Gokujo.Graph.order_ok_sound
+#print axioms Gokujo.Graph.order_ok_complete
+#print axioms Gokujo.Md.tangle_inside
+#print axioms Gokujo.Md.tangle_prose
+#print axioms Gokujo.Md.tangle_weave
+#print axioms Gokujo.Html.escape_no_lt
+#print axioms Gokujo.Html.escape_no_gt
+#print axioms Gokujo.Html.escape_no_quote
+#print axioms Gokujo.Html.escape_plain

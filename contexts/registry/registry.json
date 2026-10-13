@@ -1,0 +1,1101 @@
+{
+  "version": "2.0.0",
+  "description": "Lean Worker Registry v2 - Expanded with full-stack aristo coverage (Nix, LLVM, GCC, TinyC, CompCert, Mojo, Linux)",
+  "aristo_stack_coverage": {
+    "nix": {
+      "projects": 14,
+      "status": "modeled",
+      "components": [
+        "store",
+        "derivation",
+        "expression",
+        "sqlite",
+        "package"
+      ]
+    },
+    "llvm": {
+      "projects": 6,
+      "status": "modeled",
+      "components": [
+        "ir",
+        "types",
+        "instructions",
+        "optimization"
+      ]
+    },
+    "linux": {
+      "projects": 7,
+      "status": "modeled",
+      "components": [
+        "process",
+        "syscall",
+        "abi",
+        "bpf"
+      ]
+    },
+    "gcc": {
+      "projects": 9,
+      "status": "modeled",
+      "components": [
+        "tree",
+        "parsetree",
+        "gimple",
+        "rtl"
+      ]
+    },
+    "tinyc": {
+      "projects": 2,
+      "status": "modeled",
+      "components": [
+        "minimal-c",
+        "simple-abi"
+      ]
+    },
+    "compcert": {
+      "projects": 2,
+      "status": "modeled",
+      "components": [
+        "verified-compiler",
+        "proof"
+      ]
+    },
+    "mojo": {
+      "projects": 1,
+      "status": "modeled",
+      "components": [
+        "ast",
+        "lifecycle",
+        "ownership",
+        "traits",
+        "simd",
+        "async",
+        "gpu"
+      ]
+    }
+  },
+  "repos": [
+    {
+      "repo_name": "lean-worker",
+      "repo_path": "/mnt/data1/time-2026/09-september/18/lean-worker",
+      "git_commit": "da6c993",
+      "git_branch": "main",
+      "git_remote": "origin",
+      "description": "P2P proving loop core - agent bindings and gokujo CLI",
+      "interface_name": "lean_worker_plugin",
+      "interface_module": "RequestProject.PluginContexts.lean_worker_plugin",
+      "capabilities": [
+        "p2p-proving",
+        "gokujo-cli",
+        "ipfs-wasm",
+        "agent-bindings",
+        "proof-loop",
+        "multi-language-execution",
+        "full-stack"
+      ],
+      "commands": [
+        "help",
+        "scan",
+        "build",
+        "check",
+        "graph",
+        "cut",
+        "selfcheck",
+        "bootstrap",
+        "targets",
+        "release",
+        "bundle",
+        "init",
+        "poll",
+        "download",
+        "verify",
+        "sync",
+        "run-nodejs",
+        "run-elixir",
+        "run-go",
+        "run-python",
+        "run-rust",
+        "run-nix",
+        "run-llvm",
+        "run-linux",
+        "run-gcc",
+        "run-tinyc",
+        "run-compcert",
+        "run-mojo",
+        "compare-languages",
+        "run-wasm"
+      ],
+      "tags": [
+        "p2p",
+        "proving",
+        "core",
+        "gokujo",
+        "worker",
+        "polyglot"
+      ],
+      "services": [
+        {
+          "name": "gokujo-cli",
+          "type": "cli",
+          "binary": "gokujo",
+          "path": "minimal/gokujo"
+        },
+        {
+          "name": "p2p-proving",
+          "type": "p2p",
+          "endpoint": "https://kant-zk-relay.jmikedupont2.workers.dev"
+        },
+        {
+          "name": "language-runner",
+          "type": "api",
+          "endpoint": "/aristo/languages/"
+        }
+      ],
+      "language_twins": {
+        "nodejs": {
+          "path": "impl/nodejs/",
+          "entry": "index.js",
+          "verified": true
+        },
+        "elixir": {
+          "path": "impl/elixir/",
+          "entry": "lib.ex",
+          "verified": true
+        },
+        "go": {
+          "path": "impl/go/",
+          "entry": "main.go",
+          "verified": true
+        },
+        "python": {
+          "path": "impl/python/",
+          "entry": "main.py",
+          "verified": true
+        },
+        "rust": {
+          "path": "impl/rust/",
+          "entry": "main.rs",
+          "verified": true
+        },
+        "r": {
+          "path": "impl/r/",
+          "entry": "main.R",
+          "verified": false
+        },
+        "nix": {
+          "path": "impl/nix/",
+          "entry": "Main.nix",
+          "verified": true
+        },
+        "llvm": {
+          "path": "impl/llvm/",
+          "entry": "Main.ll",
+          "verified": true
+        },
+        "linux": {
+          "path": "impl/linux/",
+          "entry": "main.rs",
+          "verified": true
+        },
+        "gcc": {
+          "path": "impl/gcc/",
+          "entry": "main.c",
+          "verified": true
+        },
+        "tinyc": {
+          "path": "impl/tinyc/",
+          "entry": "main.c",
+          "verified": true
+        },
+        "compcert": {
+          "path": "impl/compcert/",
+          "entry": "main.c",
+          "verified": true
+        },
+        "mojo": {
+          "path": "impl/mojo/",
+          "entry": "main.mojo",
+          "verified": true
+        }
+      }
+    },
+    {
+      "repo_name": "pastebin",
+      "repo_path": "/mnt/data1/kant/pastebin",
+      "git_commit": "cc186b5",
+      "git_branch": "main",
+      "git_remote": "origin",
+      "description": "P2P WASM IPFS integration - buffy/p2p-wasm-ipfs-20261001",
+      "interface_name": "pastebin_plugin",
+      "interface_module": "RequestProject.PluginContexts.pastebin_plugin",
+      "capabilities": [
+        "p2p-wasm",
+        "ipfs",
+        "WASM",
+        "IPFS",
+        "file-drop",
+        "wasm-runtime",
+        "full-stack"
+      ],
+      "commands": [
+        "poll",
+        "download",
+        "build",
+        "verify",
+        "sync",
+        "cut",
+        "bootstrap",
+        "file-drop",
+        "run-wasm",
+        "run-nix",
+        "run-mojo"
+      ],
+      "tags": [
+        "wasm",
+        "ipfs",
+        "integration",
+        "p2p",
+        "webassembly"
+      ],
+      "services": [
+        {
+          "name": "file-drop",
+          "type": "web",
+          "endpoint": "/aristo/file-drop/"
+        },
+        {
+          "name": "ipfs-wasm",
+          "type": "wasm",
+          "binary": "ipfs-wasm-client"
+        },
+        {
+          "name": "wasm-runtime",
+          "type": "wasm",
+          "endpoint": "/aristo/wasm/"
+        }
+      ],
+      "language_twins": {
+        "wasm": {
+          "path": "impl/wasm/",
+          "entry": "main.wasm",
+          "verified": true,
+          "runtime": "wasmtime"
+        },
+        "rust": {
+          "path": "impl/rust/",
+          "entry": "main.rs",
+          "verified": true
+        },
+        "elixir": {
+          "path": "impl/elixir/",
+          "entry": "lib.ex",
+          "verified": true,
+          "runtime": "beam"
+        },
+        "nodejs": {
+          "path": "impl/js/",
+          "entry": "index.js",
+          "verified": false
+        },
+        "nix": {
+          "path": "impl/nix/",
+          "entry": "flake.nix",
+          "verified": true
+        },
+        "mojo": {
+          "path": "impl/mojo/",
+          "entry": "main.mojo",
+          "verified": true
+        }
+      }
+    },
+    {
+      "repo_name": "pastebin-lean",
+      "repo_path": "/home/mdupont/projects/worktrees/buffy-p2p-wasm-20261001",
+      "git_commit": "cc186b5",
+      "git_branch": "main",
+      "git_remote": "origin",
+      "description": "Same P2P proving loop worktree - buffy/p2p-wasm-20261001",
+      "interface_name": "pastebin_lean_plugin",
+      "interface_module": "RequestProject.PluginContexts.pastebin_lean_plugin",
+      "capabilities": [
+        "p2p-wasm",
+        "ipfs",
+        "WASM",
+        "IPFS",
+        "lean-worker-integration",
+        "twin-binding",
+        "multi-language",
+        "full-stack"
+      ],
+      "commands": [
+        "poll",
+        "download",
+        "build",
+        "verify",
+        "sync",
+        "cut",
+        "bootstrap",
+        "integrate",
+        "bind-twin",
+        "run-wasm",
+        "run-rust",
+        "run-nix",
+        "run-llvm",
+        "run-gcc"
+      ],
+      "tags": [
+        "worktree",
+        "integration",
+        "lean",
+        "twin",
+        "polyglot"
+      ],
+      "services": [
+        {
+          "name": "twin-binding",
+          "type": "api",
+          "endpoint": "/aristo/twin/"
+        }
+      ],
+      "language_twins": {
+        "lean": {
+          "path": "minimal/",
+          "entry": "Main.lean",
+          "verified": true
+        },
+        "wasm": {
+          "path": "impl/wasm/",
+          "entry": "main.wasm",
+          "verified": true
+        },
+        "rust": {
+          "path": "impl/rust/",
+          "entry": "main.rs",
+          "verified": true
+        },
+        "nix": {
+          "path": "impl/nix/",
+          "entry": "flake.nix",
+          "verified": true
+        },
+        "llvm": {
+          "path": "impl/llvm/",
+          "entry": "main.ll",
+          "verified": true
+        },
+        "gcc": {
+          "path": "impl/gcc/",
+          "entry": "main.c",
+          "verified": true
+        }
+      }
+    },
+    {
+      "repo_name": "bone-proof-loop-close",
+      "repo_path": "/mnt/data1/time-2026/09-september/18/lean-worker/worktrees/bone-proof-loop-close",
+      "git_commit": "auto",
+      "git_branch": "main",
+      "git_remote": "origin",
+      "description": "Loop close agent for proof completion",
+      "interface_name": "bone_plugin",
+      "interface_module": "RequestProject.PluginContexts.bone_plugin",
+      "capabilities": [
+        "proof-close",
+        "agent-binding",
+        "completion",
+        "elixir-runtime"
+      ],
+      "commands": [
+        "close",
+        "complete",
+        "finalize",
+        "close-loop",
+        "run-elixir"
+      ],
+      "tags": [
+        "agent",
+        "completion",
+        "proof",
+        "elixir"
+      ],
+      "services": [],
+      "language_twins": {
+        "elixir": {
+          "path": "impl/elixir/",
+          "entry": "lib.ex",
+          "verified": true,
+          "runtime": "beam"
+        },
+        "lean": {
+          "path": "minimal/",
+          "entry": "Main.lean",
+          "verified": true
+        }
+      }
+    },
+    {
+      "repo_name": "buffy-p2p-knowledge",
+      "repo_path": "/mnt/data1/time-2026/09-september/18/lean-worker/worktrees/buffy-p2p-knowledge-20261001",
+      "git_commit": "auto",
+      "git_branch": "main",
+      "git_remote": "origin",
+      "description": "P2P knowledge base and proofs",
+      "interface_name": "knowledge_plugin",
+      "interface_module": "RequestProject.PluginContexts.knowledge_plugin",
+      "capabilities": [
+        "knowledge-base",
+        "proof-storage",
+        "p2p-knowledge",
+        "r-statistics",
+        "python-ml"
+      ],
+      "commands": [
+        "store",
+        "retrieve",
+        "query",
+        "sync",
+        "search",
+        "run-r",
+        "run-python"
+      ],
+      "tags": [
+        "knowledge",
+        "p2p",
+        "storage",
+        "statistics",
+        "ml"
+      ],
+      "services": [
+        {
+          "name": "knowledge-api",
+          "type": "api",
+          "endpoint": "/aristo/knowledge/"
+        }
+      ],
+      "language_twins": {
+        "lean": {
+          "path": "minimal/",
+          "entry": "Main.lean",
+          "verified": true
+        },
+        "r": {
+          "path": "impl/r/",
+          "entry": "main.R",
+          "verified": true,
+          "runtime": "r"
+        },
+        "python": {
+          "path": "impl/python/",
+          "entry": "main.py",
+          "verified": true,
+          "runtime": "python3"
+        }
+      }
+    },
+    {
+      "repo_name": "freebuff-twin",
+      "repo_path": "/mnt/data1/time-2026/09-september/18/lean-worker/worktrees/freebuff-twin",
+      "git_commit": "cf82b70",
+      "git_branch": "main",
+      "git_remote": "origin",
+      "description": "Freebuff twin with aristo manager plugin",
+      "interface_name": "freebuff_plugin",
+      "interface_module": "RequestProject.PluginContexts.freebuff_plugin",
+      "capabilities": [
+        "twin-binding",
+        "aristo-manager",
+        "aristo-cli",
+        "proof-submission",
+        "go-services",
+        "nodejs-frontend",
+        "full-stack"
+      ],
+      "commands": [
+        "bind",
+        "twin",
+        "aristo-prove",
+        "sync-twin",
+        "submit-proof",
+        "aristo-poll",
+        "aristo-verify",
+        "run-go",
+        "run-nodejs",
+        "run-nix",
+        "run-llvm",
+        "run-gcc"
+      ],
+      "tags": [
+        "twin",
+        "aristo",
+        "binding",
+        "manager",
+        "polyglot"
+      ],
+      "services": [
+        {
+          "name": "aristotle-manager",
+          "type": "api",
+          "endpoint": "http://localhost:9876",
+          "health": "/health"
+        },
+        {
+          "name": "aristo-api",
+          "type": "api",
+          "endpoint": "/aristo/api/"
+        },
+        {
+          "name": "go-service",
+          "type": "api",
+          "endpoint": "/aristo/go/"
+        },
+        {
+          "name": "nodejs-frontend",
+          "type": "web",
+          "endpoint": "/aristo/app/"
+        }
+      ],
+      "language_twins": {
+        "lean": {
+          "path": "minimal/",
+          "entry": "Main.lean",
+          "verified": true
+        },
+        "go": {
+          "path": "impl/go/",
+          "entry": "main.go",
+          "verified": true,
+          "runtime": "go"
+        },
+        "nodejs": {
+          "path": "impl/nodejs/",
+          "entry": "index.js",
+          "verified": false,
+          "runtime": "node"
+        },
+        "rust": {
+          "path": "impl/rust/",
+          "entry": "main.rs",
+          "verified": true
+        },
+        "nix": {
+          "path": "impl/nix/",
+          "entry": "flake.nix",
+          "verified": true
+        },
+        "llvm": {
+          "path": "impl/llvm/",
+          "entry": "main.ll",
+          "verified": true
+        },
+        "gcc": {
+          "path": "impl/gcc/",
+          "entry": "main.c",
+          "verified": true
+        }
+      }
+    },
+    {
+      "repo_name": "aristo-nix-stack",
+      "repo_path": "/mnt/data1/aristotle-results/b44f22ed-4238-4119-9288-cc6ca5cc0214",
+      "git_commit": "da6c993",
+      "git_branch": "main",
+      "git_remote": "origin",
+      "description": "Nix store and package manager formalization - full Nix stack modeling (14 projects)",
+      "interface_name": "nix_stack_plugin",
+      "interface_module": "RequestProject.Nix.Basic",
+      "capabilities": [
+        "nix",
+        "store",
+        "package-manager",
+        "flake",
+        "derivations",
+        "sqlite",
+        "file-system",
+        "nix-flakes"
+      ],
+      "commands": [
+        "model-nix",
+        "formalize-nix",
+        "verify-nix",
+        "build-nix",
+        "test-nix",
+        "run-nix",
+        "simulate-nix",
+        "nix-deploy"
+      ],
+      "tags": [
+        "nix",
+        "store",
+        "package-manager",
+        "formal-verification",
+        "systems"
+      ],
+      "services": [
+        {
+          "name": "nix-store",
+          "type": "formal",
+          "endpoint": "/aristo/nix/store"
+        },
+        {
+          "name": "nix-flakes",
+          "type": "formal",
+          "endpoint": "/aristo/nix/flakes"
+        },
+        {
+          "name": "nix-derivations",
+          "type": "formal",
+          "endpoint": "/aristo/nix/derivations"
+        }
+      ],
+      "language_twins": {
+        "nix": {
+          "path": "RequestProject/Nix/",
+          "entry": "Basic.lean",
+          "verified": true,
+          "components": [
+            "Basic",
+            "Store",
+            "Derivation",
+            "Expr",
+            "Sqlite",
+            "Package"
+          ]
+        },
+        "rust": {
+          "path": "impl/rust/",
+          "entry": "main.rs",
+          "verified": true
+        },
+        "haskell": {
+          "path": "impl/haskell/",
+          "entry": "Nix.hs",
+          "verified": false
+        },
+        "python": {
+          "path": "impl/python/",
+          "entry": "nix.py",
+          "verified": false
+        }
+      }
+    },
+    {
+      "repo_name": "aristo-llvm-stack",
+      "repo_path": "/mnt/data1/aristotle-results/01611b1b-20e1-40ac-8da1-7ea508d9520c",
+      "git_commit": "cc186b5",
+      "git_branch": "main",
+      "git_remote": "origin",
+      "description": "LLVM intermediate representation formalization - full LLVM stack modeling (6 projects)",
+      "interface_name": "llvm_stack_plugin",
+      "interface_module": "RequestProject.LLVM.IR",
+      "capabilities": [
+        "llvm",
+        "ir",
+        "intermediate-representation",
+        "types",
+        "instructions",
+        "optimization"
+      ],
+      "commands": [
+        "model-llvm",
+        "formalize-llvm",
+        "verify-llvm",
+        "build-llvm",
+        "test-llvm",
+        "run-llvm",
+        "simulate-llvm"
+      ],
+      "tags": [
+        "llvm",
+        "ir",
+        "intermediate-representation",
+        "formal-verification"
+      ],
+      "services": [
+        {
+          "name": "llvm-ir",
+          "type": "formal",
+          "endpoint": "/aristo/llvm/ir"
+        },
+        {
+          "name": "llvm-types",
+          "type": "formal",
+          "endpoint": "/aristo/llvm/types"
+        }
+      ],
+      "language_twins": {
+        "llvm": {
+          "path": "RequestProject/LLVM/",
+          "entry": "IR.lean",
+          "verified": true,
+          "category": "formalization"
+        },
+        "rust": {
+          "path": "impl/rust/",
+          "entry": "main.rs",
+          "verified": true
+        },
+        "cpp": {
+          "path": "impl/cpp/",
+          "entry": "llvm.cpp",
+          "verified": false
+        },
+        "python": {
+          "path": "impl/python/",
+          "entry": "llvm.py",
+          "verified": false
+        }
+      }
+    },
+    {
+      "repo_name": "aristo-linux-stack",
+      "repo_path": "/mnt/data1/kant/pastebin",
+      "git_commit": "cc186b5",
+      "git_branch": "main",
+      "git_remote": "origin",
+      "description": "Linux kernel process formalization - full Linux stack modeling (7 projects)",
+      "interface_name": "linux_stack_plugin",
+      "interface_module": "RequestProject.Linux.Process",
+      "capabilities": [
+        "linux",
+        "kernel",
+        "processes",
+        "syscalls",
+        "bpf",
+        "sealevel",
+        "abi",
+        "multimonad"
+      ],
+      "commands": [
+        "model-linux",
+        "formalize-linux",
+        "verify-linux",
+        "build-linux",
+        "test-linux",
+        "run-linux",
+        "simulate-linux"
+      ],
+      "tags": [
+        "linux",
+        "kernel",
+        "processes",
+        "formal-verification"
+      ],
+      "services": [
+        {
+          "name": "linux-kernel",
+          "type": "formal",
+          "endpoint": "/aristo/linux/kernel"
+        },
+        {
+          "name": "linux-processes",
+          "type": "formal",
+          "endpoint": "/aristo/linux/processes"
+        }
+      ],
+      "language_twins": {
+        "linux": {
+          "path": "RequestProject/Linux/",
+          "entry": "Process.lean",
+          "verified": true,
+          "category": "formalization"
+        },
+        "rust": {
+          "path": "impl/rust/",
+          "entry": "main.rs",
+          "verified": true
+        },
+        "c": {
+          "path": "impl/c/",
+          "entry": "linux.c",
+          "verified": false
+        },
+        "python": {
+          "path": "impl/python/",
+          "entry": "linux.py",
+          "verified": false
+        }
+      }
+    },
+    {
+      "repo_name": "aristo-gcc-stack",
+      "repo_path": "/mnt/data1/time-2026/09-september/18/lean-worker/worktrees/gcc-model",
+      "git_commit": "auto",
+      "git_branch": "main",
+      "git_remote": "origin",
+      "description": "GCC compiler formalization - full GCC stack modeling (9 projects)",
+      "interface_name": "gcc_stack_plugin",
+      "interface_module": "RequestProject.GCC.Tree",
+      "capabilities": [
+        "gcc",
+        "compiler",
+        "frontend",
+        "tree",
+        "parsetree",
+        "gimple",
+        "rtl"
+      ],
+      "commands": [
+        "model-gcc",
+        "formalize-gcc",
+        "verify-gcc",
+        "build-gcc",
+        "test-gcc",
+        "run-gcc",
+        "simulate-gcc"
+      ],
+      "tags": [
+        "gcc",
+        "compiler",
+        "frontend",
+        "formal-verification"
+      ],
+      "services": [
+        {
+          "name": "gcc-frontend",
+          "type": "formal",
+          "endpoint": "/aristo/gcc/frontend"
+        },
+        {
+          "name": "gcc-tree",
+          "type": "formal",
+          "endpoint": "/aristo/gcc/tree"
+        }
+      ],
+      "language_twins": {
+        "gcc": {
+          "path": "RequestProject/GCC/",
+          "entry": "Tree.lean",
+          "verified": true,
+          "category": "formalization"
+        },
+        "rust": {
+          "path": "impl/rust/",
+          "entry": "main.rs",
+          "verified": true
+        },
+        "c": {
+          "path": "impl/c/",
+          "entry": "gcc.c",
+          "verified": false
+        },
+        "python": {
+          "path": "impl/python/",
+          "entry": "gcc.py",
+          "verified": false
+        }
+      }
+    },
+    {
+      "repo_name": "aristo-tinyc-stack",
+      "repo_path": "/mnt/data1/time-2026/09-september/18/lean-worker/worktrees/tinyc-model",
+      "git_commit": "auto",
+      "git_branch": "main",
+      "git_remote": "origin",
+      "description": "TinyC compiler formalization - minimal C compiler modeling (2 projects)",
+      "interface_name": "tinyc_stack_plugin",
+      "interface_module": "RequestProject.TinyC.Core",
+      "capabilities": [
+        "tinyc",
+        "minimal-c",
+        "simple-abi",
+        "bootstrap"
+      ],
+      "commands": [
+        "model-tinyc",
+        "formalize-tinyc",
+        "verify-tinyc",
+        "build-tinyc",
+        "test-tinyc",
+        "run-tinyc",
+        "simulate-tinyc"
+      ],
+      "tags": [
+        "tinyc",
+        "minimal-c",
+        "compiler",
+        "formal-verification"
+      ],
+      "services": [
+        {
+          "name": "tinyc-compiler",
+          "type": "formal",
+          "endpoint": "/aristo/tinyc/compiler"
+        }
+      ],
+      "language_twins": {
+        "tinyc": {
+          "path": "RequestProject/TinyC/",
+          "entry": "Core.lean",
+          "verified": true,
+          "category": "formalization"
+        },
+        "rust": {
+          "path": "impl/rust/",
+          "entry": "main.rs",
+          "verified": true
+        },
+        "c": {
+          "path": "impl/c/",
+          "entry": "tinyc.c",
+          "verified": false
+        }
+      }
+    },
+    {
+      "repo_name": "aristo-compcert-stack",
+      "repo_path": "/mnt/data1/time-2026/09-september/18/lean-worker/worktrees/compcert-model",
+      "git_commit": "auto",
+      "git_branch": "main",
+      "git_remote": "origin",
+      "description": "CompCert verified compiler formalization - formally verified C compiler (2 projects)",
+      "interface_name": "compcert_stack_plugin",
+      "interface_module": "RequestProject.CompCert.Verified",
+      "capabilities": [
+        "compcert",
+        "verified-compiler",
+        "proof",
+        "c-semantics"
+      ],
+      "commands": [
+        "model-compcert",
+        "formalize-compcert",
+        "verify-compcert",
+        "build-compcert",
+        "test-compcert",
+        "run-compcert",
+        "simulate-compcert"
+      ],
+      "tags": [
+        "compcert",
+        "verified-compiler",
+        "proof",
+        "formal-verification"
+      ],
+      "services": [
+        {
+          "name": "compcert-verified",
+          "type": "formal",
+          "endpoint": "/aristo/compcert/verified"
+        }
+      ],
+      "language_twins": {
+        "compcert": {
+          "path": "RequestProject/CompCert/",
+          "entry": "Verified.lean",
+          "verified": true,
+          "category": "formalization"
+        },
+        "rust": {
+          "path": "impl/rust/",
+          "entry": "main.rs",
+          "verified": true
+        },
+        "c": {
+          "path": "impl/c/",
+          "entry": "compcert.c",
+          "verified": false
+        }
+      }
+    },
+    {
+      "repo_name": "aristo-mojo-stack",
+      "repo_path": "/mnt/data1/aristotle-results/01611b1b-20e1-40ac-8da1-7ea508d9520c",
+      "git_commit": "cc186b5",
+      "git_branch": "main",
+      "git_remote": "origin",
+      "description": "Mojo language formalization - next-gen systems language (1 project)",
+      "interface_name": "mojo_stack_plugin",
+      "interface_module": "RequestProject.Mojo.Basic",
+      "capabilities": [
+        "mojo",
+        "ast",
+        "lifecycle",
+        "ownership",
+        "traits",
+        "simd",
+        "async",
+        "gpu"
+      ],
+      "commands": [
+        "model-mojo",
+        "formalize-mojo",
+        "verify-mojo",
+        "build-mojo",
+        "test-mojo",
+        "run-mojo",
+        "simulate-mojo"
+      ],
+      "tags": [
+        "mojo",
+        "language",
+        "systems",
+        "formal-verification",
+        "gpu"
+      ],
+      "services": [
+        {
+          "name": "mojo-ast",
+          "type": "formal",
+          "endpoint": "/aristo/mojo/ast"
+        },
+        {
+          "name": "mojo-runtime",
+          "type": "formal",
+          "endpoint": "/aristo/mojo/runtime"
+        }
+      ],
+      "language_twins": {
+        "mojo": {
+          "path": "RequestProject/Mojo/",
+          "entry": "Basic.lean",
+          "verified": true,
+          "components": [
+            "Basic",
+            "Ast",
+            "Literals",
+            "Errors",
+            "Lifecycle",
+            "Project",
+            "Ownership",
+            "Origins",
+            "Traits",
+            "Parameters",
+            "Overloads",
+            "Calls",
+            "SIMD",
+            "Stdlib",
+            "Bootstrap",
+            "RangeFor",
+            "Async",
+            "GPU",
+            "Layout",
+            "Swizzle",
+            "Interop",
+            "Complete",
+            "ZK",
+            "Fab"
+          ]
+        },
+        "rust": {
+          "path": "impl/rust/",
+          "entry": "main.rs",
+          "verified": true
+        },
+        "python": {
+          "path": "impl/python/",
+          "entry": "mojo.py",
+          "verified": false
+        }
+      }
+    }
+  ],
+  "gokujo_integration": {
+    "fetch_cmd": "gokujo cut --project {repo_name} -o {repo_name}_manifest.json",
+    "load_twin_cmd": "gokujo build --root {repo_path}/minimal",
+    "verify_cmd": "gokujo check --root {repo_path}/minimal",
+    "bootstrap_cmd": "gokujo bootstrap -o gokujo-{repo_name}",
+    "index_cmd": "gokujo cut --json {repo_path}/minimal > {repo_name}_index.json",
+    "run_language_cmd": "gokujo registry execute {repo_name} run-{language} --input {input_file}",
+    "compare_languages_cmd": "gokujo registry compare {repo_name} --input {input_file} --languages {languages}"
+  }
+}

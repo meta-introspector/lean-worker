@@ -1,0 +1,18 @@
+[Unit]
+Description=Lean Worker Registry Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/mnt/data1/time-2026/09-september/18/lean-worker
+ExecStart=/usr/bin/python3 /mnt/data1/time-2026/09-september/18/lean-worker/minimal/lean_worker_registry.lean --mode=prod
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+Environment=LEANS_WORKER_REGISTRY_PATH=/mnt/data1/time-2026/09-september/18/lean-worker
+Environment=LEANS_WORKER_REGISTRY_JSON=/mnt/data1/time-2026/09-september/18/lean-worker/contexts/registry/registry.json
+
+[Install]
+WantedBy=multi-user.target

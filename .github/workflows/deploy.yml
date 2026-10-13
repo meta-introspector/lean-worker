@@ -1,0 +1,67 @@
+name: Deploy Lean Worker Registry
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'minimal/lean_worker_registry.lean'
+      - 'lean_worker_registry.lean'
+      - 'tasks/lean4_mirrors/registry.yaml'
+      - 'tasks/lean4_mirrors/zkp_references.json'
+      - 'tasks/lean4_mirrors/generate_registry.py'
+      - 'deploy.sh'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    
+    steps:
+      - name: Checkout code (meta-introspector)
+        uses: meta-introspector/checkout@v4
+        
+      - name: Set up Python (meta-introspector)
+        uses: meta-introspector/lean-action@main
+        with:
+          python-version: '3.11'
+        
+      - name: Install dependencies
+        run: |
+          pip install --no-cache-dir -r requirements.txt
+          
+      - name: Build Lean4 registry
+        run: |
+          cd minimal
+          python3 generate_registry.py
+          
+      - name: Build Docker image
+        run: |
+          docker build -t arist/lean-worker:latest .
+          
+      - name: Login to Docker Hub
+        run: |
+          echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+        
+      - name: Push to Docker Hub
+        run: |
+          docker push arist/lean-worker:latest
+          
+      - name: Deploy to Cloudflare Pages (meta-introspector)
+        uses: meta-introspector/cloudflare-pages-action@v1
+        with:
+          api_token: ${{ secrets.CF_API_TOKEN }}
+          account_id: ${{ secrets.CF_ACCOUNT_ID }}
+          project: arist-p2p-thunk
+          directory: .
+          git_branch: main
+          commit_hash: ${{ github.sha }}
+        
+      - name: Invalidate Cloudflare cache
+        run: |
+          curl -X POST "https://api.cloudflare.com/client/v4/zones/${{ secrets.CF_ZONE_ID }}/cache/purge"
+          -H "Authorization: Bearer ${{ secrets.CF_API_TOKEN }}"
+          -H "Content-Type: application/json"
+          --data '{"purge": ["*"]}'

@@ -1,0 +1,2 @@
+2026-09-29T11:36:11.825Z info  relay  GET /health 200  |  7ms from 127.0.0.1
+2026-09-29T11:46:43.161Z info  relay  GET /health 200  |  0ms from 127.0.0.1

@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>OTC Proof Trading Desk</title>
+  <style>
+    body {font-family: system-ui, sans-serif; margin: 2rem; background: #0a0a0a; color: #c0c0c0;}
+    .board {margin: 1rem 0;}
+    .ticket {background: #1a1a1a; padding: 1rem; margin: 1rem 0; border-radius: 4px;}
+    .escrow {background: #1a1a1a; padding: 1rem; margin: 1rem 0; border-radius: 4px;}
+    .health {background: #1a1a1a; padding: 1rem; margin: 1rem 0; border-radius: 4px;}
+    .kb {background: #1a1a1a; padding: 1rem; margin: 1rem 0; border-radius: 4px;}
+    button {background: #2a2a2a; color: #c0c0c0; border: 1px solid #505050; padding: 0.5rem 1rem; cursor: pointer;}
+    button:hover {background: #3a3a3a;}
+    input, select {background: #0d0d0d; color: #c0c0c0; border: 1px solid #505050; padding: 0.5rem;}
+    .status {color: #4a9f4a; margin: 0.5rem 0;}
+    .error {color: #a94a4a; margin: 0.5rem 0;}
+    .room-handle {font-family: monospace; background: #0d0d0d; padding: 0.2rem 0.5rem; border-radius: 3px; margin: 0.2rem 0;}
+  </style>
+</head>
+<body>
+  <h1>OTC Proof Trading Desk</h1>
+
+  <section class="health" id="healthSection">
+    <h2>Health</h2>
+    <div id="health">Loading...</div>
+    <button onclick="refreshHealth()">Refresh</button>
+  </section>
+
+  <section class="board" id="boardSection">
+    <h2>Bounty Board</h2>
+    <div id="board">Loading board...</div>
+    <button onclick="refreshBoard()">Refresh Board</button>
+  </section>
+
+  <section class="ticket" id="ticketSection" style="display:none">
+    <h2>Trade Ticket</h2>
+    <label>Ticket ID: <input type="text" id="ticketId" value="trade-1234"></label><br>
+    <label>Layer: <select id="layerSelect"><option value="L0">L0 (public)</option><option value="L1">L1 (peer)</option><option value="L2">L2 (escrow)</option><option value="L3">L3 (self)</option></select></label><br>
+    <label>Mode: <select id="modeSelect"><option value="hashChained">hashChained</option><option value="quorumMofN">quorumMofN</option><option value="trustDispute">trustDispute</option></select></label><br>
+    <label>Rail: <select id="railSelect"><option value="A">A (units)</option><option value="B">B (metameme)</option><option value="C">C (credits)</option><option value="D">D (oob)</option></select></label><br>
+    <label>Deposit: <input type="number" id="deposit" value="1000"></label><br>
+    <button onclick="postTicket()">Post Ticket</button>
+    <div class="status" id="ticketStatus"></div>
+  </section>
+
+  <section class="escrow" id="escrowSection" style="display:none">
+    <h2>Escrow State</h2>
+    <label>Escrow ID: <input type="text" id="escrowId" value="escrow-1234"></label><br>
+    <button onclick="getEscrowState()">Get State</button>
+    <div class="status" id="escrowStatus"></div>
+  </section>
+
+  <section class="kb" id="kbSection" style="display:none">
+    <h2>KB Query</h2>
+    <label>Query: <input type="text" id="kbQuery" value="lean theorem"></label><br>
+    <button onclick="queryKB()">Query KB</button>
+    <div class="status" id="kbStatus"></div>
+  </section>
+
+  <script>
+    async function refreshHealth() {
+      try {
+        const r = await fetch('/health');
+        const d = await r.json();
+        document.getElementById('health').innerText = JSON.stringify(d, null, 2);
+      } catch(e) {
+        document.getElementById('health').innerText = 'Error: ' + e.message;
+      }
+    }
+
+    async function refreshBoard() {
+      try {
+        const r = await fetch('/desk/board');
+        const d = await r.json();
+        document.getElementById('board').innerText = JSON.stringify(d.board, null, 2);
+      } catch(e) {
+        document.getElementById('board').innerText = 'Error: ' + e.message;
+      }
+    }
+
+    async function postTicket() {
+      try {
+        const ticketId = document.getElementById('ticketId').value;
+        const layer = document.getElementById('layerSelect').value;
+        const mode = document.getElementById('modeSelect').value;
+        const rail = document.getElementById('railSelect').value;
+        const deposit = document.getElementById('deposit').value;
+        
+        const r = await fetch('/desk/ticket', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ticketId, layer, mode, rail, deposit})
+        });
+        const d = await r.json();
+        document.getElementById('ticketStatus').innerText = d.ok ? 'Ticket posted successfully' : 'Error: ' + (d.error || '');
+        if (d.ok) showSection('escrowSection');
+      } catch(e) {
+        document.getElementById('ticketStatus').innerText = 'Error: ' + e.message;
+      }
+    }
+
+    async function getEscrowState() {
+      try {
+        const id = document.getElementById('escrowId').value;
+        const r = await fetch(`/desk/escrow/${id}`);
+        const d = await r.json();
+        document.getElementById('escrowStatus').innerText = d.ok ? JSON.stringify(d.escrow, null, 2) : 'Error: ' + (d.error || '');
+      } catch(e) {
+        document.getElementById('escrowStatus').innerText = 'Error: ' + e.message;
+      }
+    }
+
+    async function queryKB() {
+      try {
+        const query = document.getElementById('kbQuery').value;
+        const r = await fetch(`/desk/kb?q=${encodeURIComponent(query)}`);
+        const d = await r.json();
+        document.getElementById('kbStatus').innerText = d.ok ? 'Found ' + d.results.length + ' results' : 'Error: ' + (d.error || '');
+      } catch(e) {
+        document.getElementById('kbStatus').innerText = 'Error: ' + e.message;
+      }
+    }
+
+    function showSection(id) {
+      // Hide all sections
+      document.querySelectorAll('.board, .ticket, .escrow, .kb').forEach(s => s.style.display = 'none');
+      // Show selected
+      document.getElementById(id).style.display = 'block';
+    }
+
+    // Init
+    refreshHealth();
+    refreshBoard();
+  </script>
+</body>
+</html>

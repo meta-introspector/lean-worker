@@ -1,0 +1,16 @@
+otc-desk relay 1.0.0 listening on http://127.0.0.1:8788
+  POST /room/{room}                    append lines
+  GET  /room/{room}?cursor=N[&wait=S]  poll (long poll with wait)
+  WS   /ws/{room}?cursor=N             stream
+  GET  /desk/board                     get bounty board
+  POST /desk/quote                     request quote
+  POST /desk/ticket                    post trade ticket
+  POST /desk/escrow                    deposit into escrow
+  GET  /desk/escrow/{id}               get escrow state
+  POST /desk/approve/promote           approve layer promotion
+  GET  /desk/kb?q=                     query witnessed KB
+  GET  /health                         health check
+  serving /mnt/data1/time-2026/09-september/18/lean-worker/minimal/DeskServer/web at /
+  writing the log to /tmp/otc-desk-relay.log
+2026-09-29T11:36:11.825Z info  relay  GET /health 200  |  7ms from 127.0.0.1
+2026-09-29T11:46:43.161Z info  relay  GET /health 200  |  0ms from 127.0.0.1

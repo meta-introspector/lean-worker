@@ -53,6 +53,7 @@ minimal/
 ├── ExecutionTrace.lean        — eBPF kernel trace → semantic analysis → formal proof
 ├── ToolProvenance.lean        — Tool provenance: audit trail, integrity checks
 ├── CreditUsage.lean           — Credit tracking: bounds, warnings, policy enforcement
+├── VerifiedRunner.lean        — Task-runner execution model with verified predicates
 ├── ProofWorkSpec.md           — Proof work specification: no-new-knowledge constraints
 └── tasks/                     — Multi-agent task definitions
     ├── template.json
@@ -71,9 +72,10 @@ minimal/
 | ExecutionTrace.lean | 3 | 0 | 0 |
 | ToolProvenance.lean | 3 | 0 | 0 |
 | CreditUsage.lean | 7 | 0 | 0 |
-| **Total** | **82** | **0** | **0** |
+| VerifiedRunner.lean | 5 | 0 | 0 |
+| **Total** | **87** | **0** | **0** |
 
-All 82 theorems compile cleanly with zero warnings and zero sorrys.
+All 87 theorems compile cleanly with zero warnings and zero sorrys.
 
 ## Formal Properties
 
