@@ -1561,45 +1561,119 @@ structure AxiomLine where
   axioms : List String
   deriving Inhabited
 
-/-- Parse the compiler's answer for one declaration. -/
+/-- Parse the compiler's answer for one declaration.  Only the two exact
+shapes `#print axioms` produces are accepted.  The name is everything between
+the opening quote and the closing `' depends on axioms:` (or `' does not
+depend on any axioms`), so a name with a prime such as `foo'` is kept whole. -/
 def parseAxiomLine (l : String) : Option AxiomLine :=
   let l := Util.trim l
   if !(l.startsWith "'") then none
   else
-    match l.splitOn "'" with
-    | _ :: nm :: rest =>
-        let tail := String.intercalate "'" rest
-        if (tail.splitOn "depends on axioms:").length == 2 then
-          let after := (tail.splitOn "depends on axioms:").getD 1 ""
-          let after := Util.trim after
-          let after := Util.dropPrefix after "["
-          let after := if after.endsWith "]" then (after.dropEnd 1).toString else after
-          let axs := ((after.splitOn ",").map Util.trim).filter (fun a => a != "")
-          some { name := nm, axioms := axs }
-        else some { name := nm, axioms := [] }
-    | _ => none
+    let body := (l.drop 1).toString
+    match body.splitOn "' depends on axioms:" with
+    | [nm, after] =>
+        let after := Util.trim after
+        let after := Util.dropPrefix after "["
+        let after := if after.endsWith "]" then (after.dropEnd 1).toString else after
+        let axs := ((after.splitOn ",").map Util.trim).filter (fun a => a != "")
+        if nm == "" then none else some { name := nm, axioms := axs }
+    | _ =>
+        match body.splitOn "' does not depend on any axioms" with
+        | [nm, ""] => if nm == "" then none else some { name := nm, axioms := [] }
+        | _ => none
 
-/-- Build a driver file that prints the axioms of every theorem, run it, and
-report. -/
+/-- The line the audit driver prints for each `axiom` a project module declares. -/
+def axiomDeclMarker : String := "gokujo-axiom-decl: "
+
+/-- The line the audit driver prints once the declared-axiom scan has finished. -/
+def axiomScanDone : String := "gokujo-axiom-scan: done"
+
+/-- Lean commands that print every `axiom` declared in the given project
+modules, read from the compiled environment rather than from the source
+parser, followed by a sentinel line. -/
+def axiomScanSource (modules : List String) : List String :=
+  [ "open Lean in"
+  , "#eval show CoreM Unit from do"
+  , "  let env ← getEnv"
+  , "  let mods : Array Name := #[" ++ String.intercalate ", " (modules.map jstr) ++
+      "].map String.toName"
+  , "  for i in [0:env.header.moduleNames.size] do"
+  , "    if mods.contains env.header.moduleNames[i]! then"
+  , "      for ci in env.header.moduleData[i]!.constants do"
+  , "        if ci.isAxiom then logInfo m!\"" ++ axiomDeclMarker ++ "{ci.name}\""
+  , "  logInfo \"" ++ axiomScanDone ++ "\"" ]
+
+/-- A driver output line that reports a failure of the audit itself. -/
+def isAuditComplaint (l : String) : Bool :=
+  let t := Util.trim l
+  t != "" && (parseAxiomLine t).isNone && !t.startsWith axiomDeclMarker && t != axiomScanDone &&
+  ((t.splitOn "error").length > 1 || (t.splitOn "Unknown constant").length > 1 ||
+   (t.splitOn "unknown constant").length > 1)
+
+/-- Everything one run of the audit driver established. -/
+structure AxiomAudit where
+  requested : List String := []
+  lines : List AxiomLine := []
+  declared : List String := []
+  scanned : Bool := false
+  noSources : Bool := false
+  exitCode : Nat := 0
+  complaints : List String := []
+  deriving Inhabited
+
+/-- Read the driver's output. -/
+def readAudit (requested : List String) (exitCode : Nat) (output : String) : AxiomAudit :=
+  let lines := (Util.lines output).map Util.trim
+  { requested := requested
+    lines := lines.filterMap parseAxiomLine
+    declared := Util.dedup <| lines.filterMap (fun l =>
+      if l.startsWith axiomDeclMarker then some (Util.dropPrefix l axiomDeclMarker) else none)
+    scanned := lines.contains axiomScanDone
+    exitCode := exitCode
+    complaints := lines.filter isAuditComplaint }
+
+/-- How many results the driver printed for one name. -/
+def resultCount (a : AxiomAudit) (n : String) : Nat := (a.lines.filter (·.name == n)).length
+
+/-- Every reason the audit failed or cannot be trusted, apart from a theorem
+using a disallowed axiom.  Fail-closed: the audit passes only if this is empty. -/
+def auditProblems (allowed : List String) (a : AxiomAudit) : List String :=
+  (if a.noSources then ["no Lean source files were found, so nothing was audited"] else []) ++
+  (if a.exitCode != 0 then ["the audit driver exited with code " ++ toString a.exitCode] else []) ++
+  a.complaints.map (fun l => "the audit driver reported: " ++ l) ++
+  (if a.scanned then [] else ["the scan for declared axioms did not complete"]) ++
+  a.requested.filterMap (fun n =>
+    let k := resultCount a n
+    if k == 0 then some ("no audit result for " ++ n)
+    else if k > 1 then some (toString k ++ " audit results for " ++ n)
+    else none) ++
+  ((Util.dedup (a.lines.map (·.name))).filter (fun n => !a.requested.contains n)).map
+    (fun n => "an audit result nobody asked for: " ++ n) ++
+  (a.declared.filter (fun n => !allowed.contains n)).map
+    (fun n => "the project declares axiom " ++ n ++ ", which is not allowed")
+
+/-- What the audit establishes when there are no source files: nothing. -/
+def noSourceAudit : AxiomAudit := { noSources := true }
+
+/-- Build a driver file that lists the axioms the project declares and prints
+the axioms of every theorem, run it, and report. -/
 def auditAxioms (cfg : Config) (ch : Chain) (infos : List Syn.FileInfo) :
-    IO (List AxiomLine × String) := do
+    IO AxiomAudit := do
   let names := Util.dedup <| infos.flatMap (fun f =>
     f.decls.filterMap (fun d =>
       if provingKinds.contains d.kind && d.name != "" then some d.name else none))
-  if names.isEmpty then return ([], "")
-  let imports := infos.map (fun f => "import " ++ f.module)
+  if infos.isEmpty then return noSourceAudit
+  let modules := infos.map (·.module)
+  let imports := modules.map (fun m => "import " ++ m) ++ ["import Lean"]
   let body := names.map (fun n => "#print axioms " ++ n)
-  let driver := Util.unlines (imports ++ [""] ++ body ++ [""])
+  let driver := Util.unlines (imports ++ [""] ++ axiomScanSource modules ++ body ++ [""])
   let dir := cfg.root ++ "/" ++ cfg.buildDir
   IO.FS.createDirAll dir
   let path := dir ++ "/GokujoAxiomAudit.lean"
   IO.FS.writeFile path driver
   let env ← leanEnv cfg ch
-  let (_, out, err) ← run ch.leanCmd (ch.leanPre ++ [path]) (some cfg.root) env
-  let lines := (Util.lines (out ++ "\n" ++ err))
-  let parsed := lines.filterMap parseAxiomLine
-  let complaints := lines.filter (fun l => (l.splitOn "error").length > 1)
-  return (parsed, Util.unlines complaints)
+  let (code, out, err) ← run ch.leanCmd (ch.leanPre ++ [path]) (some cfg.root) env
+  return readAudit names code (out ++ "\n" ++ err)
 
 /-- Axioms outside the allowed set. -/
 def offending (cfg : Config) (a : AxiomLine) : List String :=
@@ -1786,6 +1860,8 @@ def cases : List Case :=
   let cyc : Graph.G := [("P", ["Q"]), ("Q", ["P"])]
   let prose := ["# title", "", "some prose"]
   let code := ["def x := 1", "", "theorem t : x = 1 := rfl"]
+  let allowed := ({} : Sys.Config).allowAxioms
+  let cleanOut := Sys.axiomScanDone ++ "\n'Foo.ok' depends on axioms: [propext]"
   [ ("lexer is faithful on a tricky sample",
       String.ofList ((toks.map Lex.Tok.text).flatten) == sample)
   , ("lexer is faithful on its own manual",
@@ -1816,6 +1892,42 @@ def cases : List Case :=
       match Sys.parseAxiomLine "'Foo.baz' does not depend on any axioms" with
       | some a => a.name == "Foo.baz" && a.axioms == []
       | none => false)
+  , ("axiom lines keep primed names",
+      match Sys.parseAxiomLine "'Foo.bar'' depends on axioms: [propext]" with
+      | some a => a.name == "Foo.bar'" && a.axioms == ["propext"]
+      | none => false)
+  , ("a quoted line of another shape is not an axiom result",
+      (Sys.parseAxiomLine "'Foo.bar' is something else").isNone)
+  , ("a clean axiom audit has no problems",
+      (Sys.auditProblems allowed (Sys.readAudit ["Foo.ok"] 0 cleanOut)).isEmpty)
+  , ("the audit fails if the driver exits nonzero",
+      !(Sys.auditProblems allowed (Sys.readAudit ["Foo.ok"] 1 cleanOut)).isEmpty)
+  , ("the audit fails on an Unknown constant error",
+      !(Sys.auditProblems allowed (Sys.readAudit ["Foo.ok"] 0
+        (cleanOut ++ "\nDriver.lean:3:14: error(lean.unknownIdentifier): Unknown constant `Foo.ok2`"))).isEmpty)
+  , ("an axiom result naming an error is not a complaint",
+      !Sys.isAuditComplaint "'Foo.error' does not depend on any axioms")
+  , ("the audit fails if a requested declaration has no result",
+      !(Sys.auditProblems allowed (Sys.readAudit ["Foo.ok", "Foo.gone"] 0 cleanOut)).isEmpty)
+  , ("audited 0 is a failure when declarations were requested",
+      !(Sys.auditProblems allowed (Sys.readAudit ["Foo.ok"] 0 Sys.axiomScanDone)).isEmpty)
+  , ("the audit fails on a duplicate result",
+      !(Sys.auditProblems allowed (Sys.readAudit ["Foo.ok"] 0
+        (cleanOut ++ "\n'Foo.ok' does not depend on any axioms"))).isEmpty)
+  , ("the audit fails on a result nobody asked for",
+      !(Sys.auditProblems allowed (Sys.readAudit [] 0 cleanOut)).isEmpty)
+  , ("the audit fails if the declared-axiom scan did not finish",
+      !(Sys.auditProblems allowed (Sys.readAudit ["Foo.ok"] 0
+        "'Foo.ok' depends on axioms: [propext]")).isEmpty)
+  , ("the audit fails if the project declares a disallowed axiom",
+      !(Sys.auditProblems allowed (Sys.readAudit [] 0
+        (Sys.axiomDeclMarker ++ "Foo.bad\n" ++ Sys.axiomScanDone))).isEmpty)
+  , ("the audit fails if there are no source files",
+      (Sys.auditProblems allowed Sys.noSourceAudit).contains
+        "no Lean source files were found, so nothing was audited")
+  , ("a declared axiom on the allow-list is accepted",
+      (Sys.auditProblems (allowed ++ ["Foo.bad"]) (Sys.readAudit [] 0
+        (Sys.axiomDeclMarker ++ "Foo.bad\n" ++ Sys.axiomScanDone))).isEmpty)
   , ("module names come from paths",
       Syn.moduleOfPath "RequestProject/Wasm/Core.lean" == "RequestProject.Wasm.Core")
   , ("digests are stable", Util.digest "abc" == Util.digest "abc")
@@ -2069,17 +2181,23 @@ def axioms (a : Args) : IO UInt32 := do
   if results.any (fun r => r.status == .failed) then
     IO.eprintln "  build failed; cannot audit axioms"
     return 1
-  let (lines, complaints) ← auditAxioms cfg ch infos
+  let audit ← auditAxioms cfg ch infos
+  let lines := audit.lines
+  let problems := auditProblems cfg.allowAxioms audit
   let bad := lines.filter (fun l => !(offending cfg l).isEmpty)
   let observed := Util.dedup (lines.flatMap (·.axioms))
+  let ok := bad.isEmpty && problems.isEmpty
   if cfg.json then
     IO.println (jobj
       [("audited", jnat lines.length),
+       ("requested", jnat audit.requested.length),
        ("allowed", jarr (cfg.allowAxioms.map jstr)),
        ("observed", jarr (observed.map jstr)),
+       ("declared", jarr (audit.declared.map jstr)),
        ("violations", jarr (bad.map (fun l =>
           jobj [("name", jstr l.name), ("axioms", jarr ((offending cfg l).map jstr))]))),
-       ("ok", jbool bad.isEmpty)])
+       ("problems", jarr (problems.map jstr)),
+       ("ok", jbool ok)])
   else
     put (["  audited " ++ toString lines.length ++ " declarations",
           "  allowed:  " ++ String.intercalate ", " cfg.allowAxioms,
@@ -2088,9 +2206,9 @@ def axioms (a : Args) : IO UInt32 := do
       (if bad.isEmpty then ["  no theorem depends on anything else"]
        else bad.map (fun l => "  " ++ l.name ++ "  uses  " ++
               String.intercalate ", " (offending cfg l))) ++
-      (if complaints == "" then [] else ["", "  the audit driver reported:"] ++
-        (Util.lines complaints).map (fun l => "      " ++ l)))
-  return (if bad.isEmpty then 0 else 1)
+      (if problems.isEmpty then []
+       else ["", "  the audit failed closed:"] ++ problems.map (fun l => "      " ++ l)))
+  return (if ok then 0 else 1)
 
 /-- `gokujo check`: every gate, in order. -/
 def check (a : Args) : IO UInt32 := do

@@ -5,10 +5,13 @@ on:
     branches: [ main, master, "feature/**" ]
   pull_request:
     branches: [ main, master ]
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly on Sunday at 2AM (mathlib-optimization)
 
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    if: github.event_name != 'schedule'
     strategy:
       matrix:
         # Two-stage build: fast without mathlib, then full with mathlib
@@ -33,7 +36,7 @@ jobs:
           nix profile install nixpkgs#lake
 
       - name: Cache Lake build artifacts
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             minimal/.lake
@@ -42,13 +45,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-lake-
 
-      - name: Build (Stage 1: No Mathlib - Fast Check)
+      - name: "Build (Stage 1: No Mathlib - Fast Check)"
         if: matrix.stage == 'no-mathlib'
         run: |
           cd minimal
           # Temporary lakefile without mathlib for fast iteration
           cp lakefile.toml lakefile.toml.bak
-          cat > lakefile.toml << 'EOF'
+          cat > lakefile.toml <<- 'EOF'
           name = "RequestProject"
           version = "0.1.0"
           defaultTargets = ["RequestProject"]
@@ -60,38 +63,49 @@ jobs:
 
           [[lean_lib]]
           name = "RequestProject.Proxy"
-          roots = ["Concrete", "Core", "Dashboard", "Example", "Export", "Interop", "Monitor"]
+          roots = ["Proxy.Concrete", "Proxy.Core", "Proxy.Dashboard", "Proxy.Example", "Proxy.Export", "Proxy.Interop", "Proxy.Monitor"]
 
           [[lean_lib]]
           name = "RequestProject.Protocol"
-          roots = ["Client", "Core", "Example", "Server", "Soundness"]
+          roots = ["Protocol.Client", "Protocol.Core", "Protocol.Example", "Protocol.Server", "Protocol.Soundness"]
           EOF
           lake build
           mv lakefile.toml.bak lakefile.toml
 
-      - name: Build (Stage 2: Full Mathlib Build)
+      - name: "Build (Stage 2: Full Mathlib Build)"
         if: matrix.stage == 'full'
         run: |
           cd minimal
           lake build  # Uses full lakefile.toml with mathlib4
-          lake exe RequestProject  # Test that the executable works
 
       - name: Run Gokujo verification (single-file proof gate)
         run: |
-          # Get or build gokujo
-          if ! command -v gokujo &> /dev/null; then
-            echo "Building gojo from source..."
-            lean --make minimal/Gokujo.lean -o gokujo-temp
+          # Get or build gokujo (absolute path, since the check runs inside minimal/)
+          if command -v gokujo &> /dev/null; then
+            GOKUJO="$(realpath -s "$(command -v gokujo)")"
           else
-            gojo=gokujo
+            echo "Building gokujo from source..."
+            { cat minimal/Gokujo.lean
+              echo 'def main (argv : List String) : IO UInt32 := gokujoMain argv'; } > gokujo-main.lean
+            lean -c gokujo-main.c gokujo-main.lean
+            leanc gokujo-main.c -o gokujo-temp
+            GOKUJO="$PWD/gokujo-temp"
           fi
-          # Run comprehensive check
-          ${gogo:-gokujo-temp} check minimal/RequestProject --json > gokujo-report.json || true
+          # Check the canonical sources from inside minimal/: the Minimal lib roots
+          # plus the Proxy and Protocol modules Main imports (not the stale
+          # minimal/RequestProject mirror). Always print the report, keep the real exit status.
+          status=0
+          (cd minimal && "$GOKUJO" check \
+            Agent.lean APICapabilities.lean CommandExecution.lean CreditUsage.lean \
+            ExecutionTrace.lean ToolProvenance.lean Twin.lean Main.lean ProxyReport.lean \
+            Proxy Protocol \
+            --backend system --json) > gokujo-report.json || status=$?
           cat gokujo-report.json
+          exit "$status"
 
       - name: Upload build artifacts
         if: matrix.stage == 'full'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: lean-worker-${{ runner.os }}
           path: |
@@ -138,8 +152,7 @@ jobs:
   # Mathlib split/merge optimization (weekly)
   mathlib-optimization:
     runs-on: ubuntu-latest
-    schedule:
-      - cron: '0 2 * * 0'  # Weekly on Sunday at 2AM
+    if: github.event_name == 'schedule'
     steps:
       - uses: actions/checkout@v4
 
@@ -155,7 +168,7 @@ jobs:
           # Step 1: Build without mathlib
           echo "Stage 1: Building without mathlib..."
           cp lakefile.toml lakefile-with-mathlib.toml
-          cat > lakefile.toml << 'EOF'
+          cat > lakefile.toml <<- 'EOF'
           name = "RequestProject"
           version = "0.1.0"
           defaultTargets = ["RequestProject"]

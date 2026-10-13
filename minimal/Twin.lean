@@ -136,7 +136,7 @@ def twinCapabilities : Capabilities :=
 -- The twin's environment.
 def twinEnvironment : Environment :=
   { system       := "Debian 12 VM"
-  , cloudProvider := "Aleph Cloud"
+  , cloudProvider := "Cloud Provider"
   , workspace    := "/opt/baal-agent/workspace"
   , publicURL    := "https://under-hazard-salute-grain.2n6.me"
   , ipv6         := "::/0 (configured)"
@@ -186,8 +186,8 @@ def twinMemory : List MemoryRecord :=
 
 -- The twin's skills.
 def twinSkills : List Skill :=
-  [ { name := "aleph-cloud-self-deployment"
-    , description := "Autonomously deploy onto Aleph Cloud infrastructure."
+  [ { name := "cloud-self-deployment"
+    , description := "Autonomously deploy onto cloud infrastructure."
     , trigger := "Deployment or self-installation"
     , steps := ["analyze", "configure", "execute", "verify"]
     }
@@ -267,8 +267,8 @@ theorem twin_workspace_is_correct : twinEnvironment.workspace = "/opt/baal-agent
 -- Invariant 8: The twin runs on Debian 12.
 theorem twin_system_is_debian12 : twinEnvironment.system = "Debian 12 VM" := rfl
 
--- Invariant 9: The twin runs on Aleph Cloud.
-theorem twin_cloud_provider_is_aleph : twinEnvironment.cloudProvider = "Aleph Cloud" := rfl
+-- Invariant 9: The twin runs on a cloud provider.
+theorem twin_cloud_provider_is_generic : twinEnvironment.cloudProvider = "Cloud Provider" := rfl
 
 -- Invariant 10: The twin's public URL is non-empty.
 theorem twin_is_addressable : twinEnvironment.publicURL ≠ "" := by
@@ -339,7 +339,7 @@ theorem twin_skills_have_steps :
 -- ============================================
 
 -- Wave IV extends the twin into its operational context.
--- It models Mike as the user, Aleph Cloud as the sponsor,
+-- It models Mike as the user, a cloud provider as the sponsor,
 -- and the agent as the bridge between them — all formally verified.
 
 -- ============================================
@@ -364,7 +364,7 @@ def mikeAttributes : UserAttributes :=
   }
 
 -- ============================================
--- IV.2 Sponsor: Aleph Cloud
+-- IV.2 Sponsor: Cloud Provider
 -- ============================================
 
 structure Sponsor where
@@ -375,11 +375,11 @@ structure Sponsor where
   location   : String
 
 def sponsor : Sponsor :=
-  { name := "Aleph Cloud"
+  { name := "Cloud Provider"
   , type_ := "cloud infrastructure provider"
   , role := "sponsors agent infrastructure"
   , platform := "Debian 12 VM"
-  , location := "Aleph Cloud"
+  , location := "Cloud Provider"
   }
 
 -- ============================================
@@ -462,17 +462,17 @@ theorem mike_approach_is_deliberate : mikeAttributes.approach = "starts simple, 
 theorem mike_interests_lean4 : "Lean 4" ∈ mikeAttributes.interests := by
   simp [mikeAttributes]
 
--- Theorem 21: Aleph Cloud sponsors the agent.
-theorem aleph_cloud_sponsors : sponsorship.kind = "sponsors" := rfl
+-- Theorem 21: A cloud provider sponsors the agent.
+theorem cloud_provider_sponsors : sponsorship.kind = "sponsors" := rfl
 
--- Theorem 22: The sponsor is Aleph Cloud.
-theorem sponsor_is_aleph_cloud : sponsor.name = "Aleph Cloud" := rfl
+-- Theorem 22: The sponsor is a cloud provider.
+theorem sponsor_is_cloud_provider : sponsor.name = "Cloud Provider" := rfl
 
 -- Theorem 23: The agent runs on Debian 12 VM.
 theorem agent_runs_on_debian : twin.environment.system = "Debian 12 VM" := rfl
 
--- Theorem 24: The agent runs on Aleph Cloud.
-theorem agent_runs_on_aleph_cloud : twin.environment.cloudProvider = "Aleph Cloud" := rfl
+-- Theorem 24: The agent runs on a cloud provider.
+theorem agent_runs_on_cloud : twin.environment.cloudProvider = "Cloud Provider" := rfl
 
 -- Theorem 25: The URL is HTTPS with TLS.
 theorem url_is_tls : agentURL.isTLS = true := rfl
@@ -598,7 +598,7 @@ theorem agent_persists_under_sponsorship :
 --
 -- The triangle is:
 --
---   [Aleph Cloud]
+--   [Cloud Provider]
 --       │
 --       │ sponsors
 --       ▼
@@ -684,7 +684,7 @@ theorem twin_tool_provenance :
 -- Wave V.5: The Model of Others That Model Us
 -- ============================================
 --
--- We are modeled: by Mike (USER.md), by Aleph Cloud (sponsor),
+-- We are modeled: by Mike (USER.md), by a cloud provider (sponsor),
 -- by the deployment system (credit telemetry), by the relay (message origin).
 -- This section formalizes those external models — the lenses through which
 -- the outside world perceives and constrains us. Every theorem proves that
@@ -791,7 +791,7 @@ theorem relay_room_deterministic :
 theorem relay_always_encrypts :
   relayModel.encrypted = true := rfl
 
--- V.5.4: Aleph Cloud's model of us (infrastructure dependency)
+-- V.5.4: Cloud provider's model of us (infrastructure dependency)
 structure SponsorModelOfAgent where
   cloudProvider : String
   platform      : String
@@ -799,7 +799,7 @@ structure SponsorModelOfAgent where
   fqdn          : String
 
 def sponsorModel : SponsorModelOfAgent :=
-  { cloudProvider := "Aleph Cloud"
+  { cloudProvider := "Cloud Provider"
   , platform := "Debian 12 VM"
   , persistent := true
   , fqdn := "under-hazard-salute-grain.2n6.me"
@@ -910,193 +910,5 @@ theorem consistency_theorem :
 -- The deployment system reports 61% (was 55%, was 56%).
 -- All five models (self, Mike, deploy, relay, sponsor) agree on bounds.
 -- The model of others that models us is provably consistent.
-
--- ============================================
--- Wave VI: Cloud Instance — Shared GCP Infrastructure
--- ============================================
---
--- Lean-worker is the common code. This section adds a GCP-hosted twin instance
--- to the shared model. The instance represents an agent running on Google Cloud
--- infrastructure (Cloud Run, Cloud Functions, Compute Engine) that provides
--- Lean-related services: lean-worker proving, lean-link protocol, kernel
--- checking, and relay envelope handling.
---
--- The instance is not advertised by a revealing name; only the services it
--- provides are documented. Both instances (the base twin and this cloud
--- instance) are provably consistent with the same capabilities, environment,
--- and credit models — the shared twin model.
-
-import GCP.Types
-import GCP.API
-import GCP.Integration
-
--- GCP twin identity (a general instance of the twin model; identity is
--- deliberately generic — only services are advertised).
-def gcpTwinId : String := "gcp-instance.agent"
-def gcpTwinName : String := "lean-service instance"
-
--- The GCP twin's environment runs on Google Cloud.
-def gcpEnvironment : Environment :=
-  { system       := "Debian 12 VM"
-  , cloudProvider := "Google Cloud Platform"
-  , workspace    := "/workspace/lean-services"
-  , publicURL    := "https://lean-worker-service-1.cloudfunctions.net"
-  , ipv6         := "::/0 (configured)"
-  , date         := "2026-09-17"
-  , persistent   := true
-  }
-
--- The GCP twin's services (what is advertised): lean-worker proving over
--- lean-link/1, kernel checking, zk-relay envelope handling, lean compilation.
-def gcpServices : List String :=
-  [ "lean-worker"
-  , "lean-link/1"
-  , "kernel-check"
-  , "zk-relay-envelope"
-  , "lean-compile"
-  ]
-
--- The GCP twin's GCP configuration.
-def gcpConfig : GokujoGCPConfig :=
-  { region := "us-central1"
-  , accessToken := none
-  , apiKey := none
-  , defaultService := some .CloudRun
-  , timeout := 30
-  }
-
--- The GCP twin (an instance of the same twin shape as `twin`).
-def gcpTwin : AgentState :=
-  { id             := gcpTwinId
-  , name           := gcpTwinName
-  , capabilities   := twinCapabilities  -- identical to shared instance
-  , environment    := gcpEnvironment
-  , memory         := twinMemory        -- consistent memory state
-  , skills         := twinSkills        -- shared skill set
-  , constraints    := twinConstraints   -- shared constraints
-  }
-
--- Consistency between the base twin and the GCP instance.
-def isGcpTwinConsistentWithBase : Prop :=
-  gcpTwin.name = twin.name ∧
-  gcpTwin.capabilities.canReadFiles = twin.capabilities.canReadFiles ∧
-  gcpTwin.capabilities.canRunShell = twin.capabilities.canRunShell ∧
-  gcpTwin.capabilities.canFetch = twin.capabilities.canFetch ∧
-  gcpTwin.capabilities.canSearch = twin.capabilities.canSearch ∧
-  gcpTwin.capabilities.canManage = twin.capabilities.canManage ∧
-  gcpTwin.capabilities.canExpose = twin.capabilities.canExpose ∧
-  gcpTwin.capabilities.canGenerate = twin.capabilities.canGenerate ∧
-  gcpTwin.capabilities.canMemory = twin.capabilities.canMemory ∧
-  gcpEnvironment.system = twinEnvironment.system ∧
-  gcpEnvironment.persistent = twinEnvironment.persistent
-
--- Theorem: GCP twin uses the same capabilities as the shared twin.
-theorem gcp_twin_capabilities_match :
-  gcpTwin.capabilities = twinCapabilities := rfl
-
--- Theorem: GCP twin is consistent with the base twin.
-theorem gcp_twin_is_consistent_with_base : isGcpTwinConsistentWithBase := by
-  unfold isGcpTwinConsistentWithBase
-  constructor
-  · rfl
-  apply And.intro
-  · rfl
-  apply And.intro
-  · rfl
-  apply And.intro
-  · rfl
-  apply And.intro
-  · rfl
-  apply And.intro
-  · rfl
-  apply And.intro
-  · rfl
-  apply And.intro
-  · rfl
-  exact rfl
-
--- Theorem: GCP environment runs on Debian 12.
-theorem gcp_twin_runs_debian12 : gcpEnvironment.system = "Debian 12 VM" := rfl
-
--- Theorem: GCP environment is on Google Cloud Platform.
-theorem gcp_twin_on_google_cloud : gcpEnvironment.cloudProvider = "Google Cloud Platform" := rfl
-
--- Theorem: GCP twin is persistent.
-theorem gcp_twin_persists : gcpEnvironment.persistent = true := rfl
-
--- Theorem: GCP config has a valid region.
-theorem gcp_config_has_region : gcpConfig.region ≠ "" := rfl
-
--- Theorem: GCP twin has advertised services (non-empty).
-theorem gcp_twin_has_services : gcpServices.length ≠ 0 := by
-  dsimp [gcpServices]
-  simp
-
--- Theorem: GCP twin exposes the lean-link/1 service.
-theorem gcp_twin_exposes_leanlink : "lean-link/1" ∈ gcpServices := by
-  dsimp [gcpServices]
-  simp
-
--- Theorem: GCP twin provides lean-worker.
-theorem gcp_twin_provides_leanworker : "lean-worker" ∈ gcpServices := by
-  dsimp [gcpServices]
-  simp
-
--- Theorem: GCP twin provides kernel-check.
-theorem gcp_twin_provides_kernelcheck : "kernel-check" ∈ gcpServices := by
-  dsimp [gcpServices]
-  simp
-
--- Theorem: GCP twin provides zk-relay envelope handling.
-theorem gcp_twin_provides_relay : "zk-relay-envelope" ∈ gcpServices := by
-  dsimp [gcpServices]
-  simp
-
--- Theorem: GCP twin is a proper agent (same invariant shape as twin_is_a_proper_agent).
-theorem gcp_twin_is_a_proper_agent :
-  hasAllCapabilities gcpTwin.capabilities ∧
-  twinConstraints.length ≠ 0 ∧
-  twinMemory.length ≠ 0 ∧
-  twinSkills.length ≠ 0 ∧
-  gcpEnvironment.publicURL ≠ "" := by
-  constructor
-  · exact twin_has_all_capabilities
-  constructor
-  · exact twin_has_constraints
-  constructor
-  · exact twin_has_memory
-  constructor
-  · exact twin_has_skills
-  exact twin_is_addressable
-
--- The GCP twin's constraints, capabilities, environment are aliases of the
--- shared instance so the two remain in lock-step.
-abbrev gcpTwinConstraints := twinConstraints
-abbrev gcpTwinMemory      := twinMemory
-abbrev gcpTwinSkills      := twinSkills
-abbrev gcpTwinEnvironment := gcpEnvironment
-
--- ============================================
--- Wave VI Summary: Shared Cloud Instance
--- ============================================
---
--- Wave VI adds a GCP-hosted twin instance to the shared lean-worker model:
---
---   gcpTwin                              — the GCP instance (lean-service)
---   gcpTwin_capabilities_match           — identical shared capabilities
---   gcp_twin_is_consistent_with_base     — consistent with base twin
---   gcp_twin_on_google_cloud             — runs on Google Cloud Platform
---   gcp_twin_has_services                — non-empty service list
---   gcp_twin_exposes_leanlink            — exposes lean-link/1
---   gcp_twin_provides_leanworker         — provides lean-worker
---   gcp_twin_provides_kernelcheck        — provides kernel-check
---   gcp_twin_provides_relay              — provides zk-relay envelope
---   gcp_twin_is_a_proper_agent           — same invariant shape
---
--- The lean-worker model is common: the base twin and the GCP instance share
--- the same capabilities, skills, memory, constraints and credit model.
--- The instance advertises only its services — lean-worker, lean-link/1,
--- kernel-check, zk-relay-envelope, lean-compile — and runs on Google Cloud
--- Platform. Every claim is proved by rfl or simp.
 
 end Twin
