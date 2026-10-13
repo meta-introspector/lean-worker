@@ -45,16 +45,21 @@ inputs:
 outputs:
   member-url:
     description: "The agent's seat URL on the union site"
+    value: ${{ steps.generate.outputs.member-url }}
   badge:
     description: "Markdown badge linking to the member URL"
+    value: ${{ steps.generate.outputs.badge }}
   submit-url:
     description: "One-click link that opens the admission issue on the union repo"
+    value: ${{ steps.generate.outputs.submit-url }}
   patch:
     description: "Path of the generated admission record"
+    value: ${{ steps.generate.outputs.patch }}
 runs:
   using: "composite"
   steps:
     - name: Generate membership record
+      id: generate
       shell: bash
       run: |
         set -euo pipefail

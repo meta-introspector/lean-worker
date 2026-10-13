@@ -31,10 +31,13 @@ inputs:
 outputs:
   files:
     description: "Number of .lean files scanned"
+    value: ${{ steps.gate.outputs.files }}
   declarations:
     description: "Number of declarations parsed"
+    value: ${{ steps.gate.outputs.declarations }}
   holes:
     description: "Number of declarations with reachable holes"
+    value: ${{ steps.gate.outputs.holes }}
 runs:
   using: "composite"
   steps:
@@ -70,6 +73,7 @@ runs:
         echo "gokujo built"
 
     - name: Run gokujo gate (${{ inputs.mode }})
+      id: gate
       shell: bash
       run: |
         set -euo pipefail
@@ -100,7 +104,7 @@ runs:
               check --backend "${{ inputs.backend }}" $PATHS
             ;;
           *)
-            echo "::error::unknown mode '$MODE' (use scan, sorry or check)"
+            echo "::error::unknown mode \"$MODE\" (use scan, sorry or check)"
             exit 1
             ;;
         esac
