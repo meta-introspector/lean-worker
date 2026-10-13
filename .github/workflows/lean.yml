@@ -5,6 +5,8 @@ on:
     branches: [ main, master, "feature/**" ]
   pull_request:
     branches: [ main, master ]
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly, Sunday 2AM
 
 jobs:
   build-and-test:
@@ -42,7 +44,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-lake-
 
-      - name: Build (Stage 1: No Mathlib - Fast Check)
+      - name: "Build (Stage 1: No Mathlib - Fast Check)"
         if: matrix.stage == 'no-mathlib'
         run: |
           cd minimal
@@ -69,7 +71,7 @@ jobs:
           lake build
           mv lakefile.toml.bak lakefile.toml
 
-      - name: Build (Stage 2: Full Mathlib Build)
+      - name: "Build (Stage 2: Full Mathlib Build)"
         if: matrix.stage == 'full'
         run: |
           cd minimal
@@ -146,8 +148,7 @@ jobs:
   # Mathlib split/merge optimization (weekly)
   mathlib-optimization:
     runs-on: ubuntu-latest
-    schedule:
-      - cron: '0 2 * * 0'  # Weekly on Sunday at 2AM
+    if: github.event_name == 'schedule'
     steps:
       - uses: actions/checkout@v4
 
