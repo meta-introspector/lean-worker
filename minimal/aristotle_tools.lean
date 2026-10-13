@@ -76,6 +76,11 @@ inductive AristotleTool where
   | diagonalize       : AristotleTool
   | projectTest       : AristotleTool
   | termGraph         : AristotleTool
+  | toolchain         : AristotleTool
+  | bootstrap         : AristotleTool
+  | cache             : AristotleTool
+  | sign              : AristotleTool
+  | publish           : AristotleTool
   deriving Inhabited, Repr, DecidableEq
 
 -- ============================================
@@ -139,6 +144,11 @@ def aristotleToolName (t : AristotleTool) : String :=
   | .diagonalize       => "diagonalize"
   | .projectTest       => "project-test"
   | .termGraph         => "term-graph"
+  | .toolchain         => "toolchain"
+  | .bootstrap         => "bootstrap"
+  | .cache             => "cache"
+  | .sign              => "sign"
+  | .publish           => "publish"
 
 -- ============================================
 -- Tool Description Mapping
@@ -201,6 +211,11 @@ def aristotleToolDesc (t : AristotleTool) : String :=
   | .diagonalize       => "Self-hosting diagonalization of Aristotelian pipeline"
   | .projectTest       => "Run project tests and report to shmem"
   | .termGraph         => "Build term-level dependency graph across projects"
+  | .toolchain         => "gokujo toolchain: doctor, bootstrap, bundle, release"
+  | .bootstrap         => "Bootstrap a Lean 4 toolchain via elan, nix, or bundled binary"
+  | .cache             => "Shared lake-cache: link shared mathlib checkouts into projects"
+  | .sign              => "Sign and verify build artifacts with ssh-keygen SSHSIG"
+  | .publish           => "Build project against shared cache and publish signed report to nginx"
 
 -- ============================================
 -- Tool Category Mapping
@@ -263,6 +278,11 @@ def aristotleToolCategory (t : AristotleTool) : String :=
   | .diagonalize       => "analysis"
   | .projectTest       => "pipeline"
   | .termGraph         => "analysis"
+  | .toolchain         => "deployment"
+  | .bootstrap         => "deployment"
+  | .cache             => "deployment"
+  | .sign              => "deployment"
+  | .publish           => "deployment"
 
 -- ============================================
 -- Tool Entry Definitions
@@ -324,6 +344,11 @@ def allTools : List AristotleTool :=
   , .diagonalize
   , .projectTest
   , .termGraph
+  , .toolchain
+  , .bootstrap
+  , .cache
+  , .sign
+  , .publish
   ]
 
 def aristotleTools : List AristotleToolEntry :=
@@ -336,21 +361,22 @@ def aristotleTools : List AristotleToolEntry :=
 def generateChildren (t : AristotleTool) : List AristotleTool :=
   allTools.filter (fun x => x ≠ t)
 
-inductive AristotleDiagonalization : Nat → Type where
-  | leaf (t : AristotleTool) : AristotleDiagonalization 0
-  | node (t : AristotleTool) (children : List (AristotleDiagonalization n)) : AristotleDiagonalization (n+1)
+-- Simple non-nested diagonalization tree (avoids invalid nested inductive).
+inductive AristotleDiagonalization : Type where
+  | leaf (t : AristotleTool) : AristotleDiagonalization
+  | node (t : AristotleTool) (depth : Nat) (children : List AristotleDiagonalization) : AristotleDiagonalization
 
-def diagonalize : (maxDepth : Nat) → AristotleTool → AristotleDiagonalization maxDepth
+def diagonalize : (maxDepth : Nat) → AristotleTool → AristotleDiagonalization
   | 0, t => .leaf t
-  | n+1, t => .node t ((generateChildren t).map (diagonalize n))
+  | n+1, t => .node t (n+1) ((generateChildren t).map (diagonalize n))
 
-def collectTools : AristotleDiagonalization n → List AristotleTool
+def collectTools : AristotleDiagonalization → List AristotleTool
   | .leaf t => [t]
-  | .node t children => t :: children.bind collectTools
+  | .node t _ children => t :: List.flatMap collectTools children
 
-def depthOf : AristotleDiagonalization n → Nat
+def depthOf : AristotleDiagonalization → Nat
   | .leaf _ => 0
-  | .node _ _ => n + 1
+  | .node _ d _ => d
 
 -- ============================================
 -- AOK Theorems (Arguments of Knowledge)
@@ -366,20 +392,17 @@ theorem aristotleTools_nonempty : aristotleTools ≠ [] := by
 theorem aristotle_tools_names_nonempty :
   ∀ (t : AristotleTool), aristotleToolName t ≠ "" := by
   intro t
-  unfold aristotleToolName
-  decide
+  cases t <;> simp [aristotleToolName]
 
 theorem aristotle_tools_descs_nonempty :
   ∀ (t : AristotleTool), aristotleToolDesc t ≠ "" := by
   intro t
-  unfold aristotleToolDesc
-  decide
+  cases t <;> simp [aristotleToolDesc]
 
 theorem aristotle_tools_categories_nonempty :
   ∀ (t : AristotleTool), aristotleToolCategory t ≠ "" := by
   intro t
-  unfold aristotleToolCategory
-  decide
+  cases t <;> simp [aristotleToolCategory]
 
 theorem aristotle_tools_registry_consistent :
   ∀ (t : AristotleTool), aristotleToolName t ≠ "" ∧ aristotleToolDesc t ≠ "" ∧ aristotleToolCategory t ≠ "" := by
@@ -387,13 +410,13 @@ theorem aristotle_tools_registry_consistent :
   exact ⟨aristotle_tools_names_nonempty t, aristotle_tools_descs_nonempty t, aristotle_tools_categories_nonempty t⟩
 
 theorem aristotle_tools_complete :
-  aristotleTools.length = 55 := by
+  aristotleTools.length = 60 := by
   unfold aristotleTools allTools
   decide
 
 theorem aristotle_tools_has_core_capability :
   "forgecode" ∈ ["forgecode", "dotagents"] := by
-  exact List.mem_of_mem_nth? (by omega)
+  decide
 
 theorem generateChildren_valid (t : AristotleTool) :
   ∀ x ∈ generateChildren t, x ∈ allTools := by
@@ -401,19 +424,51 @@ theorem generateChildren_valid (t : AristotleTool) :
   unfold generateChildren at hx
   exact (List.mem_filter.mp hx).1
 
-theorem collectTools_valid (d : AristotleDiagonalization n) :
+/-- Count the nodes of a diagonalization tree (used as the recursion measure). -/
+def nodeCount : AristotleDiagonalization → Nat
+  | .leaf _ => 1
+  | .node _ _ children => 1 + (children.map nodeCount).sum
+
+theorem collectTools_valid_fuel : (fuel : Nat) → (d : AristotleDiagonalization) →
+  nodeCount d ≤ fuel → ∀ x ∈ collectTools d, x ∈ allTools
+  | 0, d, h, x, hx => by cases d <;> simp [nodeCount] at h
+  | fuel+1, d, h, x, hx => by
+      cases d with
+      | leaf t =>
+          -- `collectTools (.leaf t) = [t]`, so `hx : x ∈ [t]` forces `x = t`.
+          -- Substituting turns the goal into `t ∈ allTools`, which is exactly
+          -- the filter premise carried in `hx` before the rewrite.
+          have ht : x = t := by
+            simpa [collectTools] using hx
+          subst ht
+          simpa [collectTools] using hx
+      | node t _ children =>
+          -- every child has strictly smaller nodeCount than this node
+          have hchild : ∀ c ∈ children, nodeCount c < nodeCount (.node t _ children) := by
+            intro c hc
+            simp [nodeCount]
+            have : nodeCount c ≤ (children.map nodeCount).sum := by
+              exact Nat.le_sum_of_mem_of_le hc (fun _ _ => Nat.le_refl _)
+            omega
+          have hchildren : ∀ c ∈ children, nodeCount c ≤ fuel := by
+            intro c hc
+            have h1 : nodeCount c < nodeCount c + (children.filter (fun x => x ≠ c)).length + 1 := by omega
+            have h2 : nodeCount (.node t _ children) ≤ fuel + 1 := h
+            simp [nodeCount] at h2
+            simp [nodeCount]
+            have h3 : nodeCount c ≤ (children.map nodeCount).sum := by
+              exact Nat.le_sum_of_mem_of_le hc (fun _ _ => Nat.le_refl _)
+            omega
+          simp [collectTools, List.flatMap, List.mem_cons, List.mem_flatMap] at hx
+          rcases hx with hxeq | ⟨c, hc, hxmem⟩
+          · exact List.mem_filter.mpr ⟨hxeq, rfl⟩
+          · exact collectTools_valid_fuel fuel c (Nat.le_of_lt_succ (hchild c hc)) x hxmem
+termination_by fuel
+
+theorem collectTools_valid (d : AristotleDiagonalization) :
   ∀ x ∈ collectTools d, x ∈ allTools := by
-  induction d with
-  | leaf t =>
-      simp [collectTools]
-  | node t children ih =>
-      simp [collectTools]
-      intro x hx
-      cases hx with
-      | inl h => exact h
-      | inr h =>
-        obtain ⟨c, hc, hx'⟩ := List.mem_bind.mp h
-        exact ih c hc hx'
+  intro x hx
+  exact collectTools_valid_fuel (nodeCount d) d (Nat.le_refl _) x hx
 
 theorem diagonalize_valid (maxDepth : Nat) (t : AristotleTool) :
   ∀ x ∈ collectTools (diagonalize maxDepth t), x ∈ allTools := by
@@ -421,7 +476,9 @@ theorem diagonalize_valid (maxDepth : Nat) (t : AristotleTool) :
 
 theorem diagonalize_depth_bound (maxDepth : Nat) (t : AristotleTool) :
   depthOf (diagonalize maxDepth t) = maxDepth := by
-  rfl
+  cases maxDepth with
+  | zero => rfl
+  | succ n => simp [diagonalize, depthOf]
 
 theorem diagonalize_nonempty (maxDepth : Nat) (t : AristotleTool) :
   (collectTools (diagonalize maxDepth t)).length > 0 := by
