@@ -32,7 +32,9 @@ jobs:
             "https://github.com/leanprover/lean4/releases/download/v${LEAN_VERSION}/lean-${LEAN_VERSION}-linux.tar.zst"
           mkdir -p "$HOME/lean"
           tar --zstd -xf /tmp/lean.tar.zst -C "$HOME/lean"
-          echo "$HOME/lean/lean-${LEAN_VERSION}-linux/bin" >> "$GITHUB_PATH"
+          LEAN_BIN="$HOME/lean/lean-${LEAN_VERSION}-linux/bin"
+          echo "$LEAN_BIN" >> "$GITHUB_PATH"
+          export PATH="$LEAN_BIN:$PATH"
           lean --version
           lake --version
           leanc --version
