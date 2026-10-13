@@ -13,8 +13,9 @@ set -euo pipefail
 DIR="$(cd "$(dirname "$0")" && pwd)"
 OUT="$DIR/Gokujo.lean"
 
-# Header
-cat > "$OUT" << 'HEADER'
+# Write to a temp file first, then move to avoid self-clobbering
+TMP_OUT="$OUT.tmp.$$"
+cat > "$TMP_OUT" << 'HEADER'
 /-!
 # 極上 · gokujō — a Swiss army knife for Lean 4
 
@@ -67,31 +68,26 @@ def kanji : String := "極上"
 HEADER
 
 # Fold in the infrastructure knife
-echo "" >> "$OUT"
-echo "/-! ## Infra: build infrastructure generation -/" >> "$OUT"
-cat "$DIR/GokujoInfra.lean" >> "$OUT"
+echo "" >> "$TMP_OUT"
+echo "/-! ## Infra: build infrastructure generation -/" >> "$TMP_OUT"
+cat "$DIR/GokujoInfra.lean" >> "$TMP_OUT"
 
 # Fold in the test knife
-echo "" >> "$OUT"
-echo "/-! ## Test: infrastructure validation -/" >> "$OUT"
-cat "$DIR/GokujoTest.lean" >> "$OUT"
+echo "" >> "$TMP_OUT"
+echo "/-! ## Test: infrastructure validation -/" >> "$TMP_OUT"
+cat "$DIR/GokujoTest.lean" >> "$TMP_OUT"
 
 # Fold in the exec knife
-echo "" >> "$OUT"
-echo "/-! ## Exec: agent workflow execution -/" >> "$OUT"
-cat "$DIR/GokujoExec.lean" >> "$OUT"
+echo "" >> "$TMP_OUT"
+echo "/-! ## Exec: agent workflow execution -/" >> "$TMP_OUT"
+cat "$DIR/GokujoExec.lean" >> "$TMP_OUT"
 
 # Append the rest of the main file (everything after the imports section)
-# We need to skip the header and imports from the original Gokujo.lean
-# and append from the namespace Gokujo block onward
-echo "" >> "$OUT"
-echo "/-! ## 1. Small utilities -/" >> "$OUT"
+echo "" >> "$TMP_OUT"
+echo "/-! ## 1. Small utilities -/" >> "$TMP_OUT"
+tail -n +50 "$DIR/Gokujo.lean" >> "$TMP_OUT" 2>/dev/null || true
 
-# Find the line number where the actual code starts (after the imports)
-# in the original file and append from there
-# Actually, we need to get the original file's content starting from
-# the "namespace Util" or the first actual code after the header
-# Let's use the existing Gokujo.lean and skip the first ~50 lines (header + namespace)
-tail -n +50 "$DIR/Gokujo.lean" >> "$OUT" 2>/dev/null || true
+# Move temp file to final destination
+mv "$TMP_OUT" "$OUT"
 
 echo "✅ Folded $OUT"

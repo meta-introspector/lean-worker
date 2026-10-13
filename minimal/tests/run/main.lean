@@ -3,15 +3,14 @@
 -/
 
 import RequestProject.Test
-import RequestProject.PluginContexts
 
 namespace TestSuite
 
 /-- The main entry point for test execution. -/
-def main : IO Unit := do
+def main : IO UInt32 := do
   let testDir := "tests"
   let infos := scanPaths (config) (["."] ++ [testDir])
-  let results := buildAll (config) (toolchain config) infos
+  let (results, graphErrors) := buildAll (config) (toolchain config) infos
   let failures := results.filter (fun r => r.status == .failed)
   let successes := results.filter (fun r => r.status == .built)
   
@@ -23,8 +22,9 @@ def main : IO Unit := do
     for result in failures do
       IO.println s!"  " ++ result.module ++ ": " ++ result.status.name
       if result.log != "" then
-        IO.println s!"    " ++ (Util.lines result.log).join "\n    "
+        IO.println s!"    " ++ (Util.lines result.log).join "\n    "n    return 1
   
   IO.println "TestSuite complete"
+  return 0
 
 end TestSuite

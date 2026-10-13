@@ -1,0 +1,28 @@
+{
+  "agent_id": "agent-a",
+  "description": "Self-care tasks: maintain lean-worker project health, run verification, update documentation, and ensure CI readiness.",
+  "shared_salt": "selfcare-agent-a-2026-09-22",
+  "relay": "https://kant-zk-relay.jmikedupont2.workers.dev",
+  "room_id": "5ac79509b89fb8b2",
+  "tasks": [
+    {
+      "id": "selfcare-health",
+      "wave": "IX",
+      "msg_salt": "placeholder_msg_salt_ix",
+      "enc_key": "placeholder_enc_key_ix"
+    },
+    {
+      "id": "selfcare-docs",
+      "wave": "X",
+      "msg_salt": "placeholder_msg_salt_x",
+      "enc_key": "placeholder_enc_key_x"
+    },
+    {
+      "id": "selfcare-infra",
+      "wave": "XI",
+      "msg_salt": "placeholder_msg_salt_xi",
+      "enc_key": "placeholder_enc_key_xi"
+    }
+  ],
+  "instructions": "Agent Instructions for agent-a self-care:\n\n1. These tasks perform self-maintenance of the lean-worker project.\n2. Your waves: IX, X, XI\n3. For each wave, execute the corresponding task using lean-worker commands.\n4. Compile with: lean file.lean 2>&1 (if needed).\n5. When done, encrypt results and POST to:\n   POST https://kant-zk-relay.jmikedupont2.workers.dev/room/5ac79509b89fb8b2\n   Content-Type: application/json\n   Body: {\"encrypted\":\"<base64(ciphertext)>\",\"iv\":\"<hex 12 bytes>\",\"tag\":\"<hex 16 bytes>\",\"agent\":\"agent-a\",\"task\":\"<task_id>\",\"ts\":\"<iso8601>\"}\n\nEncryption (AES-256-GCM):\n  Algorithm: AES-256-GCM (from cryptography library)\n  Key: SHA256(\"{task_id}:selfcare-agent-a-2026-09-22\")\n  IV: 12 random bytes\n  Encrypt: ct_with_tag = AESGCM(key).encrypt(iv, plaintext.encode(), None)\n  Split: ciphertext = ct_with_tag[:-16], tag = ct_with_tag[-16:]\n  Send ciphertext base64-encoded, iv and tag as hex\n\nResult JSON (plaintext before encryption):\n  {\n    \"compiled\": true/false,\n    \"theorems_proved\": N,\n    \"sorrys_remaining\": N,\n    \"warnings\": 0,\n    \"files_changed\": [\"File1.lean\", ...],\n    \"theorems_added\": [\"theorem_name\", ...],\n    \"total_theorems\": N,\n    \"total_sorrys\": N,\n    \"log\": \"command output\"\n  }\n\nIf compilation fails, set \"compiled\": false and include \"error\" + \"log\".\nMax 3 attempts per wave.\n\nTask Details:\n- selfcare-health (wave IX): Run lean-worker health check:\n  * lean Gokujo.lean\n  * lean GokujoCore.lean\n  * lean GokujoInfra.lean\n  * lean GokujoTest.lean\n  * lean GokujoExec.lean\n  * lean ProductCatalog.lean\n  * lean --run GokujoMain.lean check minimal/RequestProject\n  * Ensure zero errors and zero sorrys.\n\n- selfcare-docs (wave X): Update documentation:\n  * lean --run GokujoMain.lean html -o gokujo.html\n  * lean --run GokujoMain.lean weave Gokujo.lean\n  * lean --run GokujoMain.lean selfcheck\n  * Verify GOKUJO.md and README.md are up-to-date.\n\n- selfcare-infra (wave XI): Generate and verify infrastructure:\n  * lean --run GokujoMain.lean infra\n  * Verify generated files: lakefile.toml, fast-lakefile.toml, flake.nix, .github/workflows/lean.yml, pipelight.yml, Makefile\n  * Optionally run: lean --run GokujoMain.lean check minimal/RequestProject\n"
+}
