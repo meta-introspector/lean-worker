@@ -1,0 +1,43 @@
+name: Action self-test
+
+on:
+  push:
+    branches: [ "feature/**" ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  gokujo-action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Whole-tree report (scan — reports, never fails)
+        uses: ./actions/gokujo
+        with:
+          mode: scan
+          paths: "."
+      - name: Gate the project tree (sorry — fails on reachable holes)
+        uses: ./actions/gokujo
+        with:
+          mode: sorry
+          paths: "minimal"
+
+  union-member-action:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate a membership record
+        id: member
+        uses: ./actions/union-member
+        with:
+          member-id: selftest-agent
+          capabilities: "agent, test"
+          description: "Self-test agent for the union-member action"
+      - name: Show the outputs
+        run: |
+          echo "member-url: ${{ steps.member.outputs.member-url }}"
+          echo "badge: ${{ steps.member.outputs.badge }}"
+          echo "submit-url: ${{ steps.member.outputs.submit-url }}"
+          echo "--- admission record ---"
+          cat admission-selftest-agent.md

@@ -1,0 +1,110 @@
+name: "gokujo"
+description: |
+  Run the gokujo proof gate on a Lean 4 project.  gokujo parses every
+  .lean file in the tree — including modules no lakefile target compiles —
+  and fails the build when any sorry/admit/native_decide is reachable.
+
+  Modes:
+    scan  — parse the tree, report modules, declarations, holes
+    sorry — fail on any reachable sorry/admit/native_decide (default)
+    check — build the given modules and audit the axioms behind every theorem
+
+  The action bundles the gokujo source, so the project needs no lake
+  package and no gokujo dependency of its own.
+inputs:
+  mode:
+    description: "Gate to run: scan | sorry | check"
+    required: false
+    default: "sorry"
+  paths:
+    description: "Paths to gate (space-separated). Default: the whole tree."
+    required: false
+    default: "."
+  backend:
+    description: "Compiler backend for check mode: system | lake | elan | nix"
+    required: false
+    default: "system"
+  toolchain:
+    description: "Lean toolchain version. Default: the project's lean-toolchain file, or 4.28.0."
+    required: false
+    default: ""
+outputs:
+  files:
+    description: "Number of .lean files scanned"
+    value: ${{ steps.gate.outputs.files }}
+  declarations:
+    description: "Number of declarations parsed"
+    value: ${{ steps.gate.outputs.declarations }}
+  holes:
+    description: "Number of declarations with reachable holes"
+    value: ${{ steps.gate.outputs.holes }}
+runs:
+  using: "composite"
+  steps:
+    - name: Install Lean 4 toolchain
+      shell: bash
+      run: |
+        set -euo pipefail
+        VERSION="${{ inputs.toolchain }}"
+        if [ -z "$VERSION" ] && [ -f lean-toolchain ]; then
+          VERSION=$(sed 's|.*:v||' lean-toolchain)
+        fi
+        VERSION="${VERSION:-4.28.0}"
+        echo "Installing leanprover/lean4:v${VERSION}"
+        sudo apt-get update -qq && sudo apt-get install -y -qq zstd
+        curl -fsSL -o /tmp/lean.tar.zst \
+          "https://github.com/leanprover/lean4/releases/download/v${VERSION}/lean-${VERSION}-linux.tar.zst"
+        mkdir -p "$HOME/lean"
+        tar --zstd -xf /tmp/lean.tar.zst -C "$HOME/lean"
+        LEAN_BIN="$HOME/lean/lean-${VERSION}-linux/bin"
+        echo "$LEAN_BIN" >> "$GITHUB_PATH"
+        export PATH="$LEAN_BIN:$PATH"
+        lean --version
+
+    - name: Build gokujo
+      shell: bash
+      run: |
+        set -euo pipefail
+        export PATH="$HOME/lean/$(ls "$HOME/lean" | head -1)/bin:$PATH"
+        GOKUJO_DIR="${{ github.action_path }}/gokujo"
+        WORK="$(mktemp -d)"
+        lean -o "$WORK/Gokujo.olean" "$GOKUJO_DIR/Gokujo.lean"
+        echo "GOKUJO_WORK=$WORK" >> "$GITHUB_ENV"
+        echo "gokujo built"
+
+    - name: Run gokujo gate (${{ inputs.mode }})
+      id: gate
+      shell: bash
+      run: |
+        set -euo pipefail
+        export PATH="$HOME/lean/$(ls "$HOME/lean" | head -1)/bin:$PATH"
+        WORK="$GOKUJO_WORK"
+        GOKUJO_MAIN="${{ github.action_path }}/gokujo/GokujoMain.lean"
+        MODE="${{ inputs.mode }}"
+        PATHS="${{ inputs.paths }}"
+        case "$MODE" in
+          scan)
+            OUT="$(LEAN_PATH="$WORK:." lean --run "$GOKUJO_MAIN" scan $PATHS)"
+            echo "$OUT"
+            FILES="$(echo "$OUT" | grep -oE '[0-9]+ files' | head -1 | grep -oE '[0-9]+')"
+            DECLS="$(echo "$OUT" | grep -oE '[0-9]+ declarations' | head -1 | grep -oE '[0-9]+')"
+            HOLES="$(echo "$OUT" | grep -oE '[0-9]+ with holes' | head -1 | grep -oE '[0-9]+')"
+            echo "files=$FILES" >> "$GITHUB_OUTPUT"
+            echo "declarations=$DECLS" >> "$GITHUB_OUTPUT"
+            echo "holes=$HOLES" >> "$GITHUB_OUTPUT"
+            ;;
+          sorry)
+            # Fails with exit 1 when any reachable sorry/admit/native_decide
+            # exists anywhere under the given paths.
+            LEAN_PATH="$WORK:." lean --run "$GOKUJO_MAIN" sorry $PATHS
+            ;;
+          check)
+            # Build the given modules and audit the axioms behind every theorem.
+            LEAN_PATH="$WORK:.lake/build/lib/lean:." lean --run "$GOKUJO_MAIN" \
+              check --backend "${{ inputs.backend }}" $PATHS
+            ;;
+          *)
+            echo "::error::unknown mode \"$MODE\" (use scan, sorry or check)"
+            exit 1
+            ;;
+        esac
