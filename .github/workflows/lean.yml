@@ -76,18 +76,26 @@ jobs:
           lake build  # Uses full lakefile.toml with mathlib4
           lake exe RequestProject  # Test that the executable works
 
-      - name: Run Gokujo verification (single-file proof gate)
+      - name: Gokujo proof gate (whole tree)
         run: |
-          # Get or build gokujo
-          if ! command -v gokujo &> /dev/null; then
-            echo "Building gojo from source..."
-            lean --make minimal/Gokujo.lean -o gokujo-temp
-          else
-            gojo=gokujo
-          fi
-          # Run comprehensive check
-          ${gogo:-gokujo-temp} check minimal/RequestProject --json > gokujo-report.json || true
-          cat gokujo-report.json
+          cd minimal
+          # Build the gokujo CLI from its single Lean file.
+          # scan/sorry are parse-based: no lake, no mathlib, fast in both stages.
+          lean -o Gokujo.olean Gokujo.lean
+          # Parse every .lean file in the tree — not just the lakefile targets.
+          LEAN_PATH=. lean --run GokujoMain.lean scan .
+          # Fail the build when any sorry/admit/native_decide is reachable
+          # anywhere in the tree, including modules no lakefile target compiles.
+          LEAN_PATH=. lean --run GokujoMain.lean sorry .
+
+      - name: Gokujo deep gate (build + axiom audit)
+        if: matrix.stage == 'full'
+        run: |
+          cd minimal
+          lean -o Gokujo.olean Gokujo.lean
+          # scan + build + sorry + axioms, one gate. The lake backend compiles
+          # every module; mathlib is already built by the full stage above.
+          LEAN_PATH=. lean --run GokujoMain.lean check .
 
       - name: Upload build artifacts
         if: matrix.stage == 'full'
