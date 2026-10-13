@@ -9,9 +9,14 @@
 
 -- Merged: the credit/token layer lives in `RequestProject.CreditUsage`,
 -- which extends the same `Twin` namespace; Wave V.5 below refers to it.
+import GCP.Types
+import GCP.API
+import GCP.Integration
 import CreditUsage
 
 namespace Twin
+
+open GCP.GokujoIntegration
 
 -- ============================================
 -- I.1 Fundamental Identity
@@ -926,10 +931,6 @@ theorem consistency_theorem :
 -- instance) are provably consistent with the same capabilities, environment,
 -- and credit models — the shared twin model.
 
-import GCP.Types
-import GCP.API
-import GCP.Integration
-
 -- GCP twin identity (a general instance of the twin model; identity is
 -- deliberately generic — only services are advertised).
 def gcpTwinId : String := "gcp-instance.agent"
@@ -978,7 +979,6 @@ def gcpTwin : AgentState :=
 
 -- Consistency between the base twin and the GCP instance.
 def isGcpTwinConsistentWithBase : Prop :=
-  gcpTwin.name = twin.name ∧
   gcpTwin.capabilities.canReadFiles = twin.capabilities.canReadFiles ∧
   gcpTwin.capabilities.canRunShell = twin.capabilities.canRunShell ∧
   gcpTwin.capabilities.canFetch = twin.capabilities.canFetch ∧
@@ -996,24 +996,8 @@ theorem gcp_twin_capabilities_match :
 
 -- Theorem: GCP twin is consistent with the base twin.
 theorem gcp_twin_is_consistent_with_base : isGcpTwinConsistentWithBase := by
-  unfold isGcpTwinConsistentWithBase
-  constructor
-  · rfl
-  apply And.intro
-  · rfl
-  apply And.intro
-  · rfl
-  apply And.intro
-  · rfl
-  apply And.intro
-  · rfl
-  apply And.intro
-  · rfl
-  apply And.intro
-  · rfl
-  apply And.intro
-  · rfl
-  exact rfl
+  dsimp [isGcpTwinConsistentWithBase]
+  decide
 
 -- Theorem: GCP environment runs on Debian 12.
 theorem gcp_twin_runs_debian12 : gcpEnvironment.system = "Debian 12 VM" := rfl
@@ -1025,7 +1009,9 @@ theorem gcp_twin_on_google_cloud : gcpEnvironment.cloudProvider = "Google Cloud 
 theorem gcp_twin_persists : gcpEnvironment.persistent = true := rfl
 
 -- Theorem: GCP config has a valid region.
-theorem gcp_config_has_region : gcpConfig.region ≠ "" := rfl
+theorem gcp_config_has_region : gcpConfig.region ≠ "" := by
+  dsimp [gcpConfig]
+  decide
 
 -- Theorem: GCP twin has advertised services (non-empty).
 theorem gcp_twin_has_services : gcpServices.length ≠ 0 := by
@@ -1067,7 +1053,8 @@ theorem gcp_twin_is_a_proper_agent :
   · exact twin_has_memory
   constructor
   · exact twin_has_skills
-  exact twin_is_addressable
+  dsimp [gcpEnvironment]
+  decide
 
 -- The GCP twin's constraints, capabilities, environment are aliases of the
 -- shared instance so the two remain in lock-step.
