@@ -1,0 +1,47 @@
+# Git ignore for Lean 4 project
+# Ignore build artifacts, compiled files, and temporary files
+
+# Lean-generated files
+*.olean
+*.o
+*.c
+*.gokujo/
+*.gokujo.build
+
+# Generated documentation (regendocs output only — do NOT ignore *.md globally;
+# tracker/, docs/, README are hand-written and tracked)
+**/*.html
+minimal/docs/generated/
+
+# Build outputs
+build/
+*.lean-out
+
+# Dependencies
+.lean-project/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Cache and temporary
+.cache/
+*.pyc
+__pycache__/
+*.egg-info/
+*.egg
+
+# Test artifacts
+.lean-test/
+
+# Other generated files
+*.log
+*.tmp
+minimal/gokujo
+minimal/test
+
+# per-task worktrees (see scripts/new-task.sh) — registered in git, not committed
+worktrees/
+.kilo/

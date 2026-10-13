@@ -6,7 +6,7 @@
     flake-utils.url = "github:numtide/flake-utils";
     lean4.url = "github:leanprover/lean4";
     mathlib4.url = "github:leanprover-community/mathlib4";
-    gokujo.url = "github:mfng/gokujo";  # placeholder, will use local
+    gokujo = self;
     pipelight.url = "github:pipelight/pipelight";
   };
 

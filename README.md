@@ -145,6 +145,8 @@ The relay expects the encrypted AES-256-GCM envelope from `minimal/tasks/templat
 
 ## Proof Work
 
+Shared lake-cache: see [SHARED_LAKE_CACHE.md](SHARED_LAKE_CACHE.md) — how to build/deploy Lean projects without ever recompiling mathlib (aristotle-manager cache/publish tooling).
+
 The [Proof Work Spec](minimal/ProofWorkSpec.md) defines a strict no-new-knowledge constraint: every proof proves only what is already declared in the model. The spec enumerates all sorrys to fill and structural lemmas required.
 
 Tactics are restricted to: `dsimp`, `decide`, `simp`, `apply`, `intros`, `cases`, `exact`, `constructor`, `obtain`.

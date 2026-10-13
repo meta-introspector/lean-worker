@@ -175,6 +175,50 @@ def scanBlock : Nat → List Char → List Char × List Char
   | d, '/' :: '-' :: cs => let r := scanBlock (d+1) cs; ('/' :: '-' :: r.1, r.2)
   | d, c :: cs => let r := scanBlock d cs; (c :: r.1, r.2)
 
+/-- The accumulating form of `scanBlock`: one frame for the whole comment
+rather than one per character, so that a multi-thousand-line doc comment
+cannot overflow the stack of a compiled binary. -/
+def scanBlockAux (d : Nat) : List Char → List Char → List Char × List Char
+  | [], acc => (acc.reverse, [])
+  | '-' :: '/' :: cs, acc =>
+      match d with
+      | 0 => (('/' :: '-' :: acc).reverse, cs)
+      | d+1 => scanBlockAux d cs ('/' :: '-' :: acc)
+  | '/' :: '-' :: cs, acc => scanBlockAux (d+1) cs ('-' :: '/' :: acc)
+  | c :: cs, acc => scanBlockAux d cs (c :: acc)
+
+theorem scanBlockAux_eq (d : Nat) (cs acc : List Char) :
+    scanBlockAux d cs acc = (acc.reverse ++ (scanBlock d cs).1, (scanBlock d cs).2) := by
+  fun_induction scanBlock d cs generalizing acc with
+  | case1 => simp [scanBlockAux, scanBlock]
+  | case2 => simp [scanBlockAux, scanBlock]
+  | case3 rest n ih1 ih2 =>
+      show scanBlockAux n.succ ('-' :: '/' :: rest) acc = _
+      rw [show scanBlockAux n.succ ('-' :: '/' :: rest) acc = scanBlockAux n rest ('/' :: '-' :: acc) from rfl]
+      rw [ih2 ('/' :: '-' :: acc)]
+      simp [scanBlock, List.reverse_append, List.cons_append, ih1]
+  | case4 n rest xs r =>
+      show scanBlockAux n ('/' :: '-' :: rest) acc = _
+      rw [show scanBlockAux n ('/' :: '-' :: rest) acc = scanBlockAux n.succ rest ('-' :: '/' :: acc) from rfl]
+      rw [r]
+      simp [scanBlock, List.reverse_append, List.cons_append]
+      exact ⟨rfl, rfl⟩
+  | case5 n c rest h1 h2 r ih =>
+      simp only [scanBlockAux]
+      rw [ih (c :: acc)]
+      simp [scanBlock, List.reverse_append, List.cons_append]
+      exact ⟨rfl, rfl⟩
+
+/-- `scanBlock`, run with an accumulator. -/
+def scanBlockTR (d : Nat) (cs : List Char) : List Char × List Char :=
+  scanBlockAux d cs []
+
+@[csimp] theorem scanBlock_eq_scanBlockTR : @scanBlock = @scanBlockTR := by
+  funext d cs
+  show scanBlock d cs = scanBlockAux d cs []
+  rw [scanBlockAux_eq]
+  simp
+
 theorem scanBlock_append (d : Nat) (cs : List Char) :
     (scanBlock d cs).1 ++ (scanBlock d cs).2 = cs := by
   fun_induction scanBlock d cs <;> simp_all +zetaDelta
@@ -189,6 +233,34 @@ def scanStr : List Char → List Char × List Char
 theorem scanStr_append (cs : List Char) :
     (scanStr cs).1 ++ (scanStr cs).2 = cs := by
   fun_induction scanStr cs <;> simp_all +zetaDelta
+
+/-- Iterative scanStr for large inputs.  Same cases as `scanStr`, run with an
+explicit stack instead of the call stack, so that a long string literal in a
+large file cannot overflow. -/
+def scanStrTR : List Char → List Char × List Char
+  | [] => ([], [])
+  | '\\' :: c :: cs =>
+      let r := scanStrTR cs; ('\\' :: c :: r.1, r.2)
+  | '"' :: cs => ([ '"' ], cs)
+  | c :: cs => let r := scanStrTR cs; (c :: r.1, r.2)
+
+theorem scanStrTR_eq : ∀ (cs : List Char), scanStr cs = scanStrTR cs := by
+  intro cs
+  fun_induction scanStr cs with
+  | case1 => rfl
+  | case2 c cs r ih =>
+      show ('\\' :: c :: r.1, r.2) = scanStrTR ('\\' :: c :: cs)
+      simp only [scanStrTR]
+      exact congrArg (fun p => ('\\' :: c :: p.1, p.2)) ih
+  | case3 cs => rfl
+  | case4 c cs r ih h1 h2 =>
+      -- `h1` is definitionally `scanStr cs`; unfold it and rewrite with the IH.
+      show (c :: (scanStr cs).1, (scanStr cs).2) = scanStrTR (c :: cs)
+      simp only [scanStrTR]
+      exact congrArg (fun p => (c :: p.1, p.2)) h2
+
+@[csimp] theorem scanStr_eq_scanStrTR : @scanStr = @scanStrTR := by
+  funext cs; exact scanStrTR_eq cs
 
 /-- Read one token off the front of the input. -/
 def nextTok : List Char → Option (Tok × List Char)
@@ -588,9 +660,50 @@ def occurrencesAux (words : List String) : Option String → List (Pos × Tok) �
       let hit := words.contains pt.2.str && prev != some "." && prev != some "|"
       (if hit then [pt.1.line] else []) ++ occurrencesAux words (some pt.2.str) rest
 
+/-- The accumulating form of `occurrencesAux`: one frame for the whole
+command rather than one per token, so that a huge command cannot overflow
+the stack. -/
+def occurrencesAuxTRGo (words : List String) (prev : Option String) :
+    List (Pos × Tok) → List Nat → List Nat
+  | [], acc => acc.reverse
+  | pt :: rest, acc =>
+      let hit := words.contains pt.2.str && prev != some "." && prev != some "|"
+      occurrencesAuxTRGo words (some pt.2.str) rest
+        (if hit then pt.1.line :: acc else acc)
+
+theorem occurrencesAuxTRGo_eq (words : List String) (prev : Option String)
+    (ts : List (Pos × Tok)) (acc : List Nat) :
+    occurrencesAuxTRGo words prev ts acc = acc.reverse ++ occurrencesAux words prev ts := by
+  induction ts generalizing prev acc with
+  | nil => simp [occurrencesAuxTRGo, occurrencesAux]
+  | cons pt rest ih =>
+      simp only [occurrencesAuxTRGo, occurrencesAux]
+      by_cases h : (words.contains pt.2.str && prev != some "." && prev != some "|") = true
+      · rw [if_pos h]
+        simp only [Bool.and_eq_true] at h
+        obtain ⟨⟨hw, hd⟩, hp⟩ := h
+        rw [hw]
+        simp [hd, hp, ih]
+      · rw [if_neg h]
+        have hnd : ¬((words.contains pt.2.str && prev != some "." && prev != some "|") = true) := h
+        rw [if_neg hnd]
+        rw [List.nil_append]
+        exact ih (some pt.2.str) acc
+
+/-- `occurrences`, run with an accumulator. -/
+def occurrencesTR (words : List String) (ts : List (Pos × Tok)) : List Nat :=
+  occurrencesAuxTRGo words none ts []
+
 /-- The line numbers, within a command, of tokens naming any of `words`. -/
 def occurrences (words : List String) (ts : List (Pos × Tok)) : List Nat :=
   occurrencesAux words none ts
+
+@[csimp] theorem occurrences_eq_occurrencesTR : @occurrences = @occurrencesTR := by
+  funext words ts
+  show occurrencesAux words none ts = occurrencesAuxTRGo words none ts []
+  have h := occurrencesAuxTRGo_eq words none ts []
+  rw [List.reverse_nil, List.nil_append] at h
+  exact h.symm
 
 theorem mem_of_mem_takeWhile {α : Type} {p : α → Bool} {l : List α} {x : α}
     (h : x ∈ l.takeWhile p) : x ∈ l := by
@@ -1023,6 +1136,13 @@ def commands : List Command :=
   , { name := "selfcheck", args := ""
     , summary := "verify that Gokujo.lean and GOKUJO.md still agree"
     , body := ["Tangles the Markdown and compares it with the Lean file, character by character."] }
+  , { name := "cut", args := "[--project NAME] [-o FILE] [paths...]"
+    , summary := "carve a corpus into its bones: unique declarations, deduped by digest"
+    , body := ["Scans every .lean file under the given paths, groups the content by digest,",
+               "and writes one JSON manifest: files, modules, imports, declarations, holes",
+               "(sorry obligations) and unique-declaration counts, per project and total.",
+               "This is the input every other generator consumes. --json prints the same",
+               "manifest to stdout instead of a file."] }
   , { name := "selftest", args := ""
     , summary := "run the built-in tests of the lexer, parser, graph and Markdown layers"
     , body := [] }
@@ -1106,6 +1226,21 @@ def topics : List Topic :=
         "",
         "Choose with --backend, or GOKUJO_BACKEND, or backend = in .gokujo/config.",
         "Otherwise gokujo picks the first that works, in the order above from bundled." ] }
+  , { id := "cut", title := "The knife: cut"
+    , body :=
+      [ "gokujo cut carves a corpus into its bones: it parses every .lean file under the",
+        "given project directories, dedups files by content digest (the same file copied",
+        "across output trees collapses into one), and writes one JSON manifest of files,",
+        "modules, imports, declarations and holes — the sorry obligations.",
+        "",
+        "  gokujo cut /corpus/projectA /corpus/projectB -o manifest.json",
+        "  gokujo cut --json /corpus > manifest.json",
+        "",
+        "The manifest is the input the generators consume: specs from holes, twins from",
+        "declarations, work orders for the fleet. A reported hole is a proved-real token",
+        "(Syn.reported_holes_are_code), so the obligation list is trustworthy by",
+        "construction. Exit code 0 even when holes exist — carving is not checking;",
+        "pipe the carved sources through gokujo check for that."] }
   , { id := "agents", title := "For agents"
     , body :=
       [ "gokujo check is the gate: exit 0 means every module compiled, no sorry, no",
@@ -1340,21 +1475,24 @@ def toolchain (cfg : Config) : IO Chain := do
 /-- Directories never descended into. -/
 def skipDirs : List String := [".git", ".lake", ".gokujo", "build", "node_modules", ".elan"]
 
-/-- All `.lean` files under a path, recursively. -/
-partial def walkLean (p : String) : IO (List String) := do
-  let fp := System.FilePath.mk p
-  if ← fp.isDir then
-    let entries ← fp.readDir
-    let mut acc : List String := []
-    for e in entries do
-      let name := e.fileName
-      if skipDirs.contains name || name.startsWith "." then continue
-      acc := acc ++ (← walkLean (p ++ "/" ++ name))
-    return acc.mergeSort (fun a b => a ≤ b)
-  else if p.endsWith ".lean" && !p.endsWith "lakefile.lean" then
-    return [p]
-  else
-    return []
+/-- All `.lean` files under a path, recursively. Uses an iterative approach
+with an explicit stack to avoid stack overflow on large directory trees. -/
+def walkLean (p : String) : IO (List String) := do
+  let mut stack : List String := [p]
+  let mut files : List String := []
+  while !stack.isEmpty do
+    let current := stack.head!
+    stack := stack.tail
+    let fp := System.FilePath.mk current
+    if ← fp.isDir then
+      let entries ← fp.readDir
+      for e in entries do
+        let name := e.fileName
+        if skipDirs.contains name || name.startsWith "." then continue
+        stack := (current ++ "/" ++ name) :: stack
+    else if current.endsWith ".lean" && !current.endsWith "lakefile.lean" then
+      files := current :: files
+  return files.mergeSort (fun a b => a ≤ b)
 
 /-- Read a file, or the empty string if it is unreadable. -/
 def readOr (p : String) : IO String := do
@@ -1605,6 +1743,99 @@ def auditAxioms (cfg : Config) (ch : Chain) (infos : List Syn.FileInfo) :
 def offending (cfg : Config) (a : AxiomLine) : List String :=
   a.axioms.filter (fun x => !cfg.allowAxioms.contains x)
 
+/-! ### The knife: `cut` — carve a corpus into its bones
+
+One project = one directory of Lean files.  `cut` walks every file, parses it
+with the same parser `scan` uses, groups files by content digest, and lays out
+the pieces as one JSON manifest: per project (files, unique files, modules,
+declarations, holes) and in total.  Uniqueness is content-addressed: a file
+counts once per digest per project, so the same file copied across output
+directories collapses — the ~30× duplication of a harvested corpus becomes
+the true set of sources.  Holes are the sorry obligations, the bones the
+proof workers get handed.
+-/
+
+/-- The bones of one carved file. -/
+structure CutFile where
+  path : String
+  module : String
+  digest : String
+  imports : List String
+  decls : Nat
+  holes : List String
+  lines : Nat
+  deriving Inhabited
+
+/-- The bones of one project. -/
+structure CutProject where
+  name : String
+  files : Nat
+  uniqueFiles : Nat
+  modules : Nat
+  decls : Nat
+  holes : List (String × String)   -- (module, decl name)
+  deriving Inhabited
+
+/-- The whole manifest. -/
+structure CutManifest where
+  projects : List CutProject
+  files : Nat
+  uniqueFiles : Nat
+  decls : Nat
+  holes : Nat
+  deriving Inhabited
+
+/-- Parse one file, or lay out empty bones if it cannot be read. -/
+def cutFile (root p : String) : IO CutFile := do
+  let contents ← readOr p
+  let f := Syn.parseFile (relTo root p) contents
+  return { path := relTo root p
+         , module := f.module
+         , digest := f.digest
+         , imports := f.imports
+         , decls := f.decls.length
+         , holes := f.holes.map (·.name)
+         , lines := f.lineCount }
+
+/-- One project directory: walk, parse, dedup by digest. -/
+def cutProject (root dir : String) : IO (Option CutProject) := do
+  if !(← (System.FilePath.mk dir).isDir) then return none
+  let paths ← walkLean dir
+  let cut ← paths.mapM (fun p => cutFile root p)
+  let uniq := Util.dedup (cut.map (·.digest))
+  let decls := (cut.map (·.decls)).foldl Nat.add 0
+  let holes := cut.flatMap (fun f => f.holes.map (fun n => (f.module, n)))
+  let name := (dir.splitOn "/").getLastD ""
+  return some { name := name, files := cut.length, uniqueFiles := uniq.length
+              , modules := (Util.dedup (cut.map (·.module))).length
+              , decls := decls, holes := holes }
+
+/-- The knife.  Paths are project directories; a file path or missing path is
+skipped silently (it cannot be a project). -/
+def cutCorpus (root : String) (paths : List String) : IO CutManifest := do
+  let projs ← paths.filterMapM (fun p => cutProject root p)
+  return { projects := projs
+         , files := (projs.map (·.files)).foldl Nat.add 0
+         , uniqueFiles := (projs.map (·.uniqueFiles)).foldl Nat.add 0
+         , decls := (projs.map (·.decls)).foldl Nat.add 0
+         , holes := (projs.map (fun p => p.holes.length)).foldl Nat.add 0 }
+
+/-- One project, as JSON. -/
+def projectJson (p : CutProject) : String :=
+  jobj [("name", jstr p.name), ("files", jnat p.files),
+        ("unique_files", jnat p.uniqueFiles), ("modules", jnat p.modules),
+        ("decls", jnat p.decls), ("holes", jnat p.holes.length),
+        ("obligations", jarr (p.holes.map (fun h =>
+           jobj [("module", jstr h.1), ("decl", jstr h.2)])))]
+
+/-- The manifest, as JSON. -/
+def manifestJson (m : CutManifest) : String :=
+  jobj [("gokujo", jstr version), ("kind", jstr "cut-manifest"),
+        ("projects", jarr (m.projects.map projectJson)),
+        ("total", jobj [("projects", jnat m.projects.length),
+                        ("files", jnat m.files), ("unique_files", jnat m.uniqueFiles),
+                        ("decls", jnat m.decls), ("holes", jnat m.holes)])]
+
 end Sys
 
 /-! ## 10. Rendering: the terminal, Markdown, and one HTML page
@@ -1820,7 +2051,15 @@ def cases : List Case :=
       Syn.moduleOfPath "RequestProject/Wasm/Core.lean" == "RequestProject.Wasm.Core")
   , ("digests are stable", Util.digest "abc" == Util.digest "abc")
   , ("digests separate", Util.digest "abc" != Util.digest "abd")
-  ]
+  ] ++
+  -- `cut` bones: parsing the same source twice yields identical digests; a
+  -- copy under a different path collapses into one unique file.
+  let cutA := Syn.parseFile "Proj/A.lean" tricky
+  let cutB := Syn.parseFile "Proj/copy/A.lean" tricky
+  [("cut digests identify identical content", cutA.digest == cutB.digest)
+  , ("cut keeps distinct content distinct",
+      cutA.digest != (Syn.parseFile "Proj/B.lean" (tricky ++ "\n")).digest)
+  , ("cut bones carry the holes", cutA.holes.map (·.name) == ["Demo.hard"])]
 
 /-- How many passed. -/
 def passed : Nat := (cases.filter (·.2)).length
@@ -1979,6 +2218,29 @@ def scan (a : Args) : IO UInt32 := do
       ["", "  " ++ toString infos.length ++ " files, " ++
         toString (infos.flatMap (·.decls)).length ++ " declarations, " ++
         toString holes.length ++ " with holes"])
+  return 0
+
+/-- `gokujo cut`. -/
+def cut (a : Args) : IO UInt32 := do
+  let cfg ← effective a
+  let m ← cutCorpus cfg.root a.positional
+  let text := manifestJson m
+  if cfg.json then
+    IO.println text
+  else
+    put (["  " ++ Util.padR "project" 40 ++ Util.padL "files" 8 ++ Util.padL "uniq" 8 ++
+            Util.padL "decls" 8 ++ Util.padL "holes" 8] ++
+      m.projects.map (fun p =>
+        "  " ++ Util.padR p.name 40 ++ Util.padL (toString p.files) 8 ++
+        Util.padL (toString p.uniqueFiles) 8 ++ Util.padL (toString p.decls) 8 ++
+        Util.padL (toString p.holes.length) 8) ++
+      ["", "  " ++ toString m.projects.length ++ " projects, " ++
+        toString m.files ++ " files (" ++ toString m.uniqueFiles ++ " unique), " ++
+        toString m.decls ++ " declarations, " ++
+        toString m.holes ++ " sorry obligations"])
+  match cfg.out with
+  | some f => do IO.FS.writeFile f text; IO.println ("  wrote " ++ f)
+  | none => pure ()
   return 0
 
 /-- `gokujo sorry`. -/
@@ -2321,6 +2583,7 @@ def dispatch (a : Args) : IO UInt32 := do
   | "version" => versionCmd a
   | "doctor" => doctor a
   | "scan" => scan a
+  | "cut" => cut a
   | "sorry" => sorryCmd a
   | "graph" => graph a
   | "build" => build a
