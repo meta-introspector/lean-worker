@@ -250,16 +250,19 @@ function handleDeskEndpoints(cfg, req, res, url, started, log) {
   // GET /desk/board - the 21-bounty board, rendered from BountyBoard
   if (pathname === "/desk/board" && method === "GET") {
     log.info("desk", "board request", `${method} ${pathname}`);
-    // TODO: Render from BountyBoard.lean (would need FFI or pre-generated data)
+    if (deskState.bounties.size === 0) {
+      sendJson(res, cfg, 501, {
+        ok: false,
+        error: "bounty board store not yet populated"
+      });
+      return true;
+    }
+    const bounties = [...deskState.bounties.values()];
     sendJson(res, cfg, 200, {
       ok: true,
       board: {
-        totalUnits: 11300,
-        bounties: [
-          { id: "B1", lane: "leanTh", price: 100, escrowMode: "hashChained" },
-          { id: "B2", lane: "independent", price: 300, escrowMode: "quorumMofN" }
-          // ... 19 more bounties
-        ]
+        totalUnits: bounties.reduce((sum, b) => sum + (Number(b.price) || 0), 0),
+        bounties
       }
     });
     return true;
@@ -268,15 +271,9 @@ function handleDeskEndpoints(cfg, req, res, url, started, log) {
   // POST /desk/quote - request a bilateral quote on a unit
   if (pathname === "/desk/quote" && method === "POST") {
     log.info("desk", "quote request", `${method} ${pathname}`);
-    // TODO: Parse body, compute quote based on artifact properties
-    sendJson(res, cfg, 200, {
-      ok: true,
-      quote: {
-        artifactId: "work_unit_001",
-        priceMetameme: 500,
-        checkCostCPUMinutes: 23.2,
-        validUntil: Date.now() + 3600000 // 1 hour
-      }
+    sendJson(res, cfg, 501, {
+      ok: false,
+      error: "quote computation not yet implemented"
     });
     return true;
   }
@@ -284,11 +281,10 @@ function handleDeskEndpoints(cfg, req, res, url, started, log) {
   // POST /desk/ticket - post a trade ticket (Envelope, tagTrade)
   if (pathname === "/desk/ticket" && method === "POST") {
     log.info("desk", "ticket posted", `${method} ${pathname}`);
-    // TODO: Parse ticket, validate signature, store trade
-    sendJson(res, cfg, 200, {
-      ok: true,
-      tradeId: `trade_${Date.now()}`,
-      received: true
+    sendJson(res, cfg, 501, {
+      ok: false,
+      received: false,
+      error: "trade ticket persistence not yet implemented"
     });
     return true;
   }
@@ -296,11 +292,10 @@ function handleDeskEndpoints(cfg, req, res, url, started, log) {
   // POST /desk/escrow - deposit into escrow
   if (pathname === "/desk/escrow" && method === "POST") {
     log.info("desk", "escrow deposit", `${method} ${pathname}`);
-    // TODO: Parse deposit, create escrow record
-    sendJson(res, cfg, 200, {
-      ok: true,
-      escrowId: `escrow_${Date.now()}`,
-      deposited: true
+    sendJson(res, cfg, 501, {
+      ok: false,
+      deposited: false,
+      error: "escrow deposit persistence not yet implemented"
     });
     return true;
   }
@@ -309,15 +304,24 @@ function handleDeskEndpoints(cfg, req, res, url, started, log) {
   if (pathname.startsWith("/desk/escrow/") && method === "GET") {
     const id = pathname.substring("/desk/escrow/".length);
     log.info("desk", "escrow state request", `${method} ${pathname} id=${id}`);
-    // TODO: Fetch escrow state from store
+    if (deskState.escrows.size === 0) {
+      sendJson(res, cfg, 501, {
+        ok: false,
+        error: "escrow store not yet populated"
+      });
+      return true;
+    }
+    const escrow = deskState.escrows.get(id);
+    if (!escrow) {
+      sendJson(res, cfg, 404, {
+        ok: false,
+        error: "escrow not found"
+      });
+      return true;
+    }
     sendJson(res, cfg, 200, {
       ok: true,
-      escrow: {
-        id,
-        status: "open",
-        currentBalance: 0,
-        receipts: []
-      }
+      escrow
     });
     return true;
   }
@@ -325,17 +329,10 @@ function handleDeskEndpoints(cfg, req, res, url, started, log) {
   // POST /desk/approve/promote - APPROVE: release the next layer (signed Receipt)
   if (pathname === "/desk/approve/promote" && method === "POST") {
     log.info("desk", "layer promotion approval", `${method} ${pathname}`);
-    // TODO: Parse approval, verify signature, update approvals set
-    sendJson(res, cfg, 200, {
-      ok: true,
-      approved: true,
-      receipt: {
-        height: 1,
-        tag: "approval-tag-placeholder",
-        prevHash: 0,
-        depositAmt: 0,
-        releaseAmt: 0
-      }
+    sendJson(res, cfg, 501, {
+      ok: false,
+      approved: false,
+      error: "promotion approval signature verification not yet implemented"
     });
     return true;
   }
@@ -344,10 +341,19 @@ function handleDeskEndpoints(cfg, req, res, url, started, log) {
   if (pathname === "/desk/kb" && method === "GET") {
     const query = url.searchParams.get("q") || "";
     log.info("desk", "KB query", `${method} ${pathname} q="${query}"`);
-    // TODO: Query witnessed KB store, return matching records
+    if (deskState.kb.size === 0) {
+      sendJson(res, cfg, 501, {
+        ok: false,
+        error: "witnessed KB store not yet populated"
+      });
+      return true;
+    }
+    const results = [...deskState.kb.values()].filter((r) =>
+      !query || JSON.stringify(r).toLowerCase().includes(query.toLowerCase())
+    );
     sendJson(res, cfg, 200, {
       ok: true,
-      results: [],
+      results,
       query,
       timestamp: Date.now()
     });
