@@ -5,6 +5,8 @@ on:
     branches: [ main, master, "feature/**" ]
   pull_request:
     branches: [ main, master ]
+  schedule:
+    - cron: '0 2 * * 0'  # Weekly, Sunday 2AM
 
 jobs:
   build-and-test:
@@ -146,8 +148,7 @@ jobs:
   # Mathlib split/merge optimization (weekly)
   mathlib-optimization:
     runs-on: ubuntu-latest
-    schedule:
-      - cron: '0 2 * * 0'  # Weekly on Sunday at 2AM
+    if: github.event_name == 'schedule'
     steps:
       - uses: actions/checkout@v4
 
