@@ -1,4 +1,4 @@
-import RequestProject.Tracker.Gokujo
+import Gokujo
 
 /-!
 # `gokujo`, the executable
