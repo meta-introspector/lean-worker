@@ -20,19 +20,22 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Nix
-        uses: cachix/install-nix-action@v20
-        with:
-          extra_nix_config: |
-            experimental-features = nix-command flakes
-            substituters = https://cache.nixos.org https://nix-community.cachix.org
-            trusted-public-keys = cache.nixos.org-1:aNJVHp2ql7migYbNxr0vczfzuVoCYuzzbJVGNCDtU6g= nix-community.cachix.org-1:IT9/7Hwk9xU/HRhDHbhlZW6Nw3NUBmEvfpL6wO3jVNo=
-
       - name: Install Lean 4 toolchain
         run: |
-          nix profile install nixpkgs#lean4
-          nix profile install nixpkgs#leanc
-          nix profile install nixpkgs#lake
+          # Deterministic binary release matching minimal/lean-toolchain.
+          # (nixpkgs#lean4 builds Lean from source, 1-3h; the release
+          # tarball is prebuilt and fast.)
+          LEAN_VERSION=$(sed 's|.*:v||' minimal/lean-toolchain)
+          echo "Installing leanprover/lean4:v${LEAN_VERSION}"
+          sudo apt-get update -qq && sudo apt-get install -y -qq zstd
+          curl -fsSL -o /tmp/lean.tar.zst \
+            "https://github.com/leanprover/lean4/releases/download/v${LEAN_VERSION}/lean-${LEAN_VERSION}-linux.tar.zst"
+          mkdir -p "$HOME/lean"
+          tar --zstd -xf /tmp/lean.tar.zst -C "$HOME/lean"
+          echo "$HOME/lean/lean-${LEAN_VERSION}-linux/bin" >> "$GITHUB_PATH"
+          lean --version
+          lake --version
+          leanc --version
 
       - name: Cache Lake build artifacts
         uses: actions/cache@v4
