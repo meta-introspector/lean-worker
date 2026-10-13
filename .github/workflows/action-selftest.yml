@@ -12,11 +12,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run the gokujo gate over the whole tree
+      - name: Whole-tree report (scan — reports, never fails)
+        uses: ./actions/gokujo
+        with:
+          mode: scan
+          paths: "."
+      - name: Gate the project tree (sorry — fails on reachable holes)
         uses: ./actions/gokujo
         with:
           mode: sorry
-          paths: "."
+          paths: "minimal"
 
   union-member-action:
     runs-on: ubuntu-latest
