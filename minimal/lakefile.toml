@@ -26,3 +26,7 @@ roots = ["AgentP2P", "activity_profile", "aristotle_manager", "cid_index_lean", 
 [[lean_exe]]
 name = "proxy_report"
 root = "ProxyReport"
+
+[[lean_exe]]
+name = "microgokujo"
+root = "MicroGokujo"
