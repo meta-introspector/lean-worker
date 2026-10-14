@@ -32,7 +32,7 @@ roots = [
   "spec_to_proof", "spool", "spool_source", "tantivy_indexer", "task_manager",
   "test_tag_42", "tokenizer", "zombie_driver", "zos_a11y_gui", "zos_github_manager",
   "zos_noc_manager", "zos_plugin_generators",
-  "umbral_moonshine", "general_divisor"
+  "umbral_moonshine", "general_divisor", "schonhage_tensor"
 ]
 
 [[lean_exe]]
