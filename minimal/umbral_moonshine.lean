@@ -18,8 +18,6 @@ structure UmbralMoonshineInterface where
   capabilities : List String
   commands     : List String
 
-abbrev PluginInterface := UmbralMoonshineInterface
-
 -- ============================================
 -- umbral_moonshine Specific Context
 -- ============================================

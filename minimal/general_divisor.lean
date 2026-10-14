@@ -18,8 +18,6 @@ structure GeneralDivisorInterface where
   capabilities : List String
   commands     : List String
 
-abbrev PluginInterface := GeneralDivisorInterface
-
 -- ============================================
 -- general_divisor Specific Context
 -- ============================================

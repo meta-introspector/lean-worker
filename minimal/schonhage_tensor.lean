@@ -18,8 +18,6 @@ structure SchonhageTensorInterface where
   capabilities : List String
   commands     : List String
 
-abbrev PluginInterface := SchonhageTensorInterface
-
 -- ============================================
 -- schonhage_tensor Specific Context
 -- ============================================
