@@ -68,7 +68,7 @@ jobs:
 
           [[lean_lib]]
           name = "RequestProject"
-          roots = ["RequestProject.Agent", "RequestProject.APICapabilities", "RequestProject.CommandExecution", "RequestProject.CreditUsage", "RequestProject.ExecutionTrace", "RequestProject.ToolProvenance", "RequestProject.Twin", "umbral_moonshine", "general_divisor"]
+          roots = ["RequestProject.Agent", "RequestProject.APICapabilities", "RequestProject.CommandExecution", "RequestProject.CreditUsage", "RequestProject.ExecutionTrace", "RequestProject.ToolProvenance", "RequestProject.Twin", "umbral_moonshine", "general_divisor", "schonhage_tensor"]
           EOF
           lake build
           mv lakefile.toml.bak lakefile.toml
@@ -96,7 +96,7 @@ jobs:
 
           [[lean_lib]]
           name = "RequestProject"
-          roots = ["RequestProject.Agent", "RequestProject.APICapabilities", "RequestProject.CommandExecution", "RequestProject.CreditUsage", "RequestProject.ExecutionTrace", "RequestProject.ToolProvenance", "RequestProject.Twin", "umbral_moonshine", "general_divisor"]
+          roots = ["RequestProject.Agent", "RequestProject.APICapabilities", "RequestProject.CommandExecution", "RequestProject.CreditUsage", "RequestProject.ExecutionTrace", "RequestProject.ToolProvenance", "RequestProject.Twin", "umbral_moonshine", "general_divisor", "schonhage_tensor"]
           EOF
           lake build
           mv lakefile.toml.bak lakefile.toml
@@ -134,7 +134,8 @@ jobs:
             RequestProject/ToolProvenance.lean \
             RequestProject/Twin.lean \
             umbral_moonshine.lean \
-            general_divisor.lean
+            general_divisor.lean \
+            schonhage_tensor.lean
 
       - name: Upload build artifacts
         if: matrix.stage == 'full'
@@ -217,7 +218,7 @@ jobs:
 
           [[lean_lib]]
           name = "RequestProject"
-          roots = ["RequestProject.Agent", "RequestProject.APICapabilities", "RequestProject.CommandExecution", "RequestProject.CreditUsage", "RequestProject.ExecutionTrace", "RequestProject.ToolProvenance", "RequestProject.Twin", "umbral_moonshine", "general_divisor"]
+          roots = ["RequestProject.Agent", "RequestProject.APICapabilities", "RequestProject.CommandExecution", "RequestProject.CreditUsage", "RequestProject.ExecutionTrace", "RequestProject.ToolProvenance", "RequestProject.Twin", "umbral_moonshine", "general_divisor", "schonhage_tensor"]
           EOF
           lake build RequestProject
           echo "Stage 1 complete"
@@ -236,7 +237,7 @@ jobs:
 
           [[lean_lib]]
           name = "RequestProject"
-          roots = ["RequestProject.Agent", "RequestProject.APICapabilities", "RequestProject.CommandExecution", "RequestProject.CreditUsage", "RequestProject.ExecutionTrace", "RequestProject.ToolProvenance", "RequestProject.Twin", "umbral_moonshine", "general_divisor"]
+          roots = ["RequestProject.Agent", "RequestProject.APICapabilities", "RequestProject.CommandExecution", "RequestProject.CreditUsage", "RequestProject.ExecutionTrace", "RequestProject.ToolProvenance", "RequestProject.Twin", "umbral_moonshine", "general_divisor", "schonhage_tensor"]
           EOF
           lake build RequestProject  # Should reuse cached
           echo "Stage 2 complete"
