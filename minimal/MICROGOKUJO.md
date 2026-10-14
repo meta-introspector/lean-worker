@@ -22,7 +22,7 @@ The splitter is fast but *useless* if every shard still depends on everything.
 
 ```
 mathlib oleans (shared cache)
-      │  microgokujo deps Mathlib.*            ← kernel: name,kind,used-consts
+      │  microgokujo deps-prefix Mathlib       ← kernel: name,kind,used-consts
       ▼
 deps.tsv  (constant → module, used-constant graph)
       │  synth_interfaces.py --module Mathlib.X --out ifaces/

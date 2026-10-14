@@ -71,11 +71,11 @@ def modulesUnder (env : Environment) (prefixes : List Name) : List Name :=
   env.allImportedModuleNames.toList.filter fun m =>
     prefixes.any fun p => m.getPrefix == p || m == p
 
-/-- Search-path directories: LEAN_PATH entries (colon-separated). -/
+/-- Search-path directories: the fully initialized search path
+(`initSearchPath` result: LEAN_PATH env + toolchain lib/lean + sysroot).
+Callers must `initSearchPath (← Lean.findSysroot)` before calling. -/
 def leanPathDirs : IO (List System.FilePath) := do
-  let some lp ← IO.getEnv "LEAN_PATH" | pure []
-  let parts := lp.splitOn ":"
-  pure (parts.filterMap fun s => if s.isEmpty then none else some ⟨s⟩)
+  searchPathRef.get
 
 /-- All modules under `prefix` resolvable on the search path.
 The prefix itself may be a module (olean file) and/or a directory of
