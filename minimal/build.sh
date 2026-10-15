@@ -12,13 +12,11 @@ if [ ! -f "Gokujo.lean" ]; then
     exit 1
 fi
 
-# Compile the library first
-echo "Compiling Gokujo.lean as library..."
-lean -o Gokujo.olean Gokujo.lean
-
-# Compile the single file executable
-echo "Compiling GokujoMain.lean..."
-lean -R . -o gokujo GokujoMain.lean
+# Compile the library (both olean for imports and C for linking) and executable
+echo "Compiling Gokujo library and native binary..."
+lean -o Gokujo.olean -c Gokujo.c Gokujo.lean
+lean -c GokujoMain.c GokujoMain.lean
+leanc -o gokujo Gokujo.c GokujoMain.c
 
 echo "Build successful!"
 
