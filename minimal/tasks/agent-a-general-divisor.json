@@ -46,5 +46,24 @@
     "lean4_axioms": 0,
     "backing_module": "minimal/general_divisor.lean",
     "status": "VERIFIED_PASS"
+  },
+  "co_authors": [
+    "Volkan Dağlı (@pCwOrM)",
+    "Dan Hawkley (@thinkthoughts)",
+    "Dr. Zerrin Dağlı",
+    "Dağhan Dağlı"
+  ],
+  "upstream_kernel_closure": {
+    "pr": "https://github.com/pCwOrM/general-divisor-theorem/pull/1",
+    "merge_commit": "061f4e85",
+    "total_kernel_theorems": 39,
+    "modules": {
+      "GeneralDivisorTheorem.lean": 16,
+      "VolkanBridge.lean": 10,
+      "DensityBridge.lean": 13
+    },
+    "project_axioms": 0,
+    "sorrys": 0,
+    "audit_certificate": "https://github.com/pCwOrM/general-divisor-theorem/blob/main/docs/KERNEL_VERIFICATION_AUDIT_CERTIFICATE.md"
   }
 }
