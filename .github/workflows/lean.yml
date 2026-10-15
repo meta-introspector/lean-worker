@@ -2,7 +2,7 @@ name: Lean 4 Verification & Build
 
 on:
   push:
-    branches: [ main, master, "feature/**" ]
+    branches: [ main, master, "feature/**", "fix/**" ]
   pull_request:
     branches: [ main, master ]
   schedule:
