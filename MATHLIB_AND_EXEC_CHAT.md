@@ -99,13 +99,13 @@ lake exe RequestProject
 
 ```bash
 # Start Lean REPL with project dependencies
-lake exe lean
+lake env lean
 
 # Or use nix shell
 nix develop -c lean
 
 # Load a specific file
-lake exe lean minimal/RequestProject/Twin.lean
+lake lean RequestProject/Twin.lean
 ```
 
 ### Chat integration

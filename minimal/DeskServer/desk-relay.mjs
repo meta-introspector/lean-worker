@@ -27,6 +27,7 @@ import http from "node:http";
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import { pathToFileURL } from "node:url";
 
 const args = new Map();
 for (let i = 2; i < process.argv.length; i += 1) {
@@ -40,17 +41,24 @@ for (let i = 2; i < process.argv.length; i += 1) {
 
 /** Are we the program being run, or a library inside somebody else's?
  *  A library keeps quiet unless it is given a log file. */
-const isMain = process.argv[1] && import.meta.url === `file://${path.resolve(process.argv[1])}`;
+const isMain = Boolean(process.argv[1]) && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href;
+
+const posInt = (raw, fallback, max = Infinity) => {
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 1 && n <= max ? Math.floor(n) : fallback;
+};
 
 export const CONFIG = {
-  port: Number(args.get("port") ?? process.env.PORT ?? 8787),
+  port: posInt(args.get("port") ?? process.env.PORT, 8787, 65535),
   host: args.get("host") ?? process.env.HOST ?? "0.0.0.0",
   staticDir: args.get("static") ?? process.env.KANT_STATIC ?? "",
   origin: args.get("origin") ?? process.env.KANT_ORIGIN ?? "*",
-  maxLine: Number(args.get("max-line") ?? 262144),
-  maxLines: Number(args.get("max-lines") ?? 4096),
-  maxBody: Number(args.get("max-body") ?? 1048576),
-  roomTtlMs: Number(args.get("room-ttl") ?? 6 * 60 * 60 * 1000),
+  maxLine: posInt(args.get("max-line"), 262144),
+  maxLines: posInt(args.get("max-lines"), 4096),
+  maxBody: posInt(args.get("max-body"), 1048576),
+  maxRooms: posInt(args.get("max-rooms"), 128),
+  maxTotalBytes: posInt(args.get("max-total-bytes"), 64 * 1024 * 1024),
+  roomTtlMs: posInt(args.get("room-ttl"), 6 * 60 * 60 * 1000),
   logFile: args.get("log") ?? process.env.KANT_LOG ?? "",
   quiet: args.get("quiet") === "1" || process.env.KANT_QUIET === "1" || !isMain,
   version: "1.0.0",
@@ -66,9 +74,12 @@ export const roomRef = (room) =>
  *  file named by `--log` (appending) and, unless `--quiet`, to stdout. */
 export function makeLogger(cfg = CONFIG) {
   const stream = cfg.logFile ? fs.createWriteStream(cfg.logFile, { flags: "a" }) : null;
+  const clean = (s) => String(s).replace(/[\r\n]+/g, " ");
   const write = (level, area, text, detail = "") => {
-    const line = `${new Date().toISOString()} ${level.padEnd(5)} ${area.padEnd(6)} ${text}` +
-      `${detail ? `  |  ${detail}` : ""}`;
+    const safeText = clean(text);
+    const safeDetail = detail ? clean(detail) : "";
+    const line = `${new Date().toISOString()} ${level.padEnd(5)} ${area.padEnd(6)} ${safeText}` +
+      `${safeDetail ? `  |  ${safeDetail}` : ""}`;
     if (stream) stream.write(`${line}\n`);
     if (!cfg.quiet) console.log(line);
     return line;
@@ -87,29 +98,120 @@ export function makeLogger(cfg = CONFIG) {
 export class Rooms {
   constructor(cfg = CONFIG) {
     this.cfg = cfg;
-    this.map = new Map(); // room -> { base, lines, waiters, sockets, touched }
+    this.map = new Map(); // room -> { base, bytes, lines, waiters, sockets, touched }
+    this.totalBytes = 0;
+  }
+
+  deleteRoom(key) {
+    const r = this.map.get(key);
+    if (r) {
+      this.totalBytes = Math.max(0, this.totalBytes - r.bytes);
+      this.map.delete(key);
+    }
   }
 
   room(name) {
-    let r = this.map.get(name);
+    const key = String(name);
+    let r = this.map.get(key);
     if (!r) {
-      r = { base: 0, lines: [], waiters: new Set(), sockets: new Set(), touched: Date.now() };
-      this.map.set(name, r);
+      const maxRooms = this.cfg.maxRooms ?? 128;
+      if (this.map.size >= maxRooms) {
+        this.sweep();
+      }
+      if (this.map.size >= maxRooms) {
+        for (const [k, candidate] of this.map) {
+          if (candidate.lines.length === 0 && candidate.base === 0 &&
+              candidate.sockets.size === 0 && candidate.waiters.size === 0) {
+            this.deleteRoom(k);
+            break;
+          }
+        }
+      }
+      if (this.map.size >= maxRooms) {
+        for (const [k, candidate] of this.map) {
+          if (candidate.lines.length === 0 && candidate.base === 0 &&
+              candidate.sockets.size === 0) {
+            for (const w of [...candidate.waiters]) {
+              candidate.waiters.delete(w);
+              w();
+            }
+            this.deleteRoom(k);
+            break;
+          }
+        }
+      }
+      if (this.map.size >= maxRooms) {
+        throw new Error("room capacity reached");
+      }
+      const created = { base: 0, bytes: 0, lines: [], waiters: new Set(), sockets: new Set(), touched: Date.now() };
+      this.map.set(key, created);
+      r = created;
     }
     r.touched = Date.now();
     return r;
   }
 
   /** Absolute length of the log: the cursor the next line will get. */
-  end(name) { const r = this.room(name); return r.base + r.lines.length; }
+  end(name) {
+    const r = this.map.get(name);
+    return r ? r.base + r.lines.length : 0;
+  }
 
   post(name, lines) {
     const r = this.room(name);
-    for (const l of lines) r.lines.push(l);
-    if (r.lines.length > this.cfg.maxLines) {
-      const drop = r.lines.length - this.cfg.maxLines;
+    const maxBytes = this.cfg.maxBody ?? 1048576;
+    const maxTotal = this.cfg.maxTotalBytes ?? 64 * 1024 * 1024;
+    const batch = lines.length > this.cfg.maxLines
+      ? lines.slice(lines.length - this.cfg.maxLines)
+      : lines;
+    const skipped = lines.length - batch.length;
+    r.base += skipped;
+    for (const l of batch) {
+      const b = Buffer.byteLength(l, "utf8");
+      r.lines.push(l);
+      r.bytes += b;
+      this.totalBytes += b;
+    }
+    let drop = Math.max(0, r.lines.length - this.cfg.maxLines);
+    let droppedBytes = 0;
+    for (let i = 0; i < drop; i++) {
+      droppedBytes += Buffer.byteLength(r.lines[i], "utf8");
+    }
+    while (drop < r.lines.length && r.bytes - droppedBytes > maxBytes) {
+      droppedBytes += Buffer.byteLength(r.lines[drop], "utf8");
+      drop += 1;
+    }
+    if (drop > 0) {
       r.lines.splice(0, drop);
+      r.bytes -= droppedBytes;
+      this.totalBytes = Math.max(0, this.totalBytes - droppedBytes);
       r.base += drop;
+    }
+    if (this.totalBytes > maxTotal) {
+      this.sweep();
+    }
+    for (const [, candidate] of this.map) {
+      if (this.totalBytes <= maxTotal) break;
+      if (candidate !== r && candidate.sockets.size === 0 && candidate.waiters.size === 0 && candidate.lines.length > 0) {
+        candidate.base += candidate.lines.length;
+        this.totalBytes = Math.max(0, this.totalBytes - candidate.bytes);
+        candidate.bytes = 0;
+        candidate.lines.length = 0;
+      }
+    }
+    if (this.totalBytes > maxTotal && r.lines.length > 0) {
+      let extraDrop = 0;
+      let extraBytes = 0;
+      while (extraDrop < r.lines.length && this.totalBytes - extraBytes > maxTotal) {
+        extraBytes += Buffer.byteLength(r.lines[extraDrop], "utf8");
+        extraDrop += 1;
+      }
+      if (extraDrop > 0) {
+        r.lines.splice(0, extraDrop);
+        r.bytes -= extraBytes;
+        this.totalBytes = Math.max(0, this.totalBytes - extraBytes);
+        r.base += extraDrop;
+      }
     }
     const cursor = r.base + r.lines.length;
     for (const w of [...r.waiters]) { r.waiters.delete(w); w(); }
@@ -119,7 +221,11 @@ export class Rooms {
 
   /** Everything from `cursor` onwards, plus the new cursor. */
   fetch(name, cursor) {
-    const r = this.room(name);
+    const r = this.map.get(name);
+    if (!r) {
+      return { cursor: 0, lines: [], truncated: false };
+    }
+    r.touched = Date.now();
     const end = r.base + r.lines.length;
     const from = Math.max(cursor, r.base);
     return {
@@ -129,13 +235,29 @@ export class Rooms {
     };
   }
 
-  /** Resolve when something is posted, or after `ms`. */
-  wait(name, ms) {
+  /** Resolve when something is posted, after `ms`, or when `stream` closes. */
+  wait(name, ms, stream = null) {
     const r = this.room(name);
     return new Promise((resolve) => {
-      const done = () => { clearTimeout(timer); r.waiters.delete(done); resolve(); };
+      const done = () => {
+        clearTimeout(timer);
+        if (stream) stream.off?.("close", done);
+        r.waiters.delete(done);
+        if (r.lines.length === 0 && r.base === 0 && r.sockets.size === 0 && r.waiters.size === 0) {
+          this.deleteRoom(String(name));
+        }
+        resolve();
+      };
+      if (stream?.destroyed || stream?.writableEnded) {
+        if (r.lines.length === 0 && r.base === 0 && r.sockets.size === 0 && r.waiters.size === 0) {
+          this.deleteRoom(String(name));
+        }
+        resolve();
+        return;
+      }
       const timer = setTimeout(done, ms);
       r.waiters.add(done);
+      if (stream) stream.once?.("close", done);
     });
   }
 
@@ -143,7 +265,7 @@ export class Rooms {
     const now = Date.now();
     for (const [name, r] of this.map) {
       if (r.sockets.size === 0 && r.waiters.size === 0 &&
-          now - r.touched > this.cfg.roomTtlMs) this.map.delete(name);
+          now - r.touched > this.cfg.roomTtlMs) this.deleteRoom(name);
     }
   }
 
@@ -181,13 +303,22 @@ const sendJson = (res, cfg, code, obj) => {
 function readBody(req, limit) {
   return new Promise((resolve, reject) => {
     let size = 0;
+    let failed = false;
     const chunks = [];
     req.on("data", (c) => {
+      if (failed) return;
       size += c.length;
-      if (size > limit) { reject(new Error("too large")); req.destroy(); return; }
+      if (size > limit) {
+        failed = true;
+        req.resume();
+        reject(new Error("too large"));
+        return;
+      }
       chunks.push(c);
     });
-    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+    req.on("end", () => {
+      if (!failed) resolve(Buffer.concat(chunks).toString("utf8"));
+    });
     req.on("error", reject);
   });
 }
@@ -243,110 +374,117 @@ const deskState = {
   approvals: new Set(), // set of approved layer promotions
 };
 
-function handleDeskEndpoints(cfg, res, url, started, log) {
+function handleDeskEndpoints(cfg, req, res, url, started, log) {
   const pathname = url.pathname;
+  const method = req.method;
   
   // GET /desk/board - the 21-bounty board, rendered from BountyBoard
-  if (pathname === "/desk/board" && url.method === "GET") {
-    log.info("desk", "board request", `${url.method} ${pathname}`);
-    // TODO: Render from BountyBoard.lean (would need FFI or pre-generated data)
+  if (pathname === "/desk/board" && method === "GET") {
+    log.info("desk", "board request", `${method} ${pathname}`);
+    if (deskState.bounties.size === 0) {
+      sendJson(res, cfg, 501, {
+        ok: false,
+        error: "bounty board store not yet populated"
+      });
+      return true;
+    }
+    const bounties = [...deskState.bounties.values()];
     sendJson(res, cfg, 200, {
       ok: true,
       board: {
-        totalUnits: 11300,
-        bounties: [
-          { id: "B1", lane: "leanTh", price: 100, escrowMode: "hashChained" },
-          { id: "B2", lane: "independent", price: 300, escrowMode: "quorumMofN" }
-          // ... 19 more bounties
-        ]
+        totalUnits: bounties.reduce((sum, b) => sum + (Number(b.price) || 0), 0),
+        bounties
       }
     });
     return true;
   }
 
   // POST /desk/quote - request a bilateral quote on a unit
-  if (pathname === "/desk/quote" && url.method === "POST") {
-    log.info("desk", "quote request", `${url.method} ${pathname}`);
-    // TODO: Parse body, compute quote based on artifact properties
-    sendJson(res, cfg, 200, {
-      ok: true,
-      quote: {
-        artifactId: "work_unit_001",
-        priceMetameme: 500,
-        checkCostCPUMinutes: 23.2,
-        validUntil: Date.now() + 3600000 // 1 hour
-      }
+  if (pathname === "/desk/quote" && method === "POST") {
+    log.info("desk", "quote request", `${method} ${pathname}`);
+    sendJson(res, cfg, 501, {
+      ok: false,
+      error: "quote computation not yet implemented"
     });
     return true;
   }
 
   // POST /desk/ticket - post a trade ticket (Envelope, tagTrade)
-  if (pathname === "/desk/ticket" && url.method === "POST") {
-    log.info("desk", "ticket posted", `${url.method} ${pathname}`);
-    // TODO: Parse ticket, validate signature, store trade
-    sendJson(res, cfg, 200, {
-      ok: true,
-      tradeId: `trade_${Date.now()}`,
-      received: true
+  if (pathname === "/desk/ticket" && method === "POST") {
+    log.info("desk", "ticket posted", `${method} ${pathname}`);
+    sendJson(res, cfg, 501, {
+      ok: false,
+      received: false,
+      error: "trade ticket persistence not yet implemented"
     });
     return true;
   }
 
   // POST /desk/escrow - deposit into escrow
-  if (pathname === "/desk/escrow" && url.method === "POST") {
-    log.info("desk", "escrow deposit", `${url.method} ${pathname}`);
-    // TODO: Parse deposit, create escrow record
-    sendJson(res, cfg, 200, {
-      ok: true,
-      escrowId: `escrow_${Date.now()}`,
-      deposited: true
+  if (pathname === "/desk/escrow" && method === "POST") {
+    log.info("desk", "escrow deposit", `${method} ${pathname}`);
+    sendJson(res, cfg, 501, {
+      ok: false,
+      deposited: false,
+      error: "escrow deposit persistence not yet implemented"
     });
     return true;
   }
 
   // GET /desk/escrow/{id} - escrow state
-  if (pathname.startsWith("/desk/escrow/") && url.method === "GET") {
+  if (pathname.startsWith("/desk/escrow/") && method === "GET") {
     const id = pathname.substring("/desk/escrow/".length);
-    log.info("desk", "escrow state request", `${url.method} ${pathname} id=${id}`);
-    // TODO: Fetch escrow state from store
+    log.info("desk", "escrow state request", `${method} /desk/escrow/${roomRef(id)}`);
+    if (deskState.escrows.size === 0) {
+      sendJson(res, cfg, 501, {
+        ok: false,
+        error: "escrow store not yet populated"
+      });
+      return true;
+    }
+    const escrow = deskState.escrows.get(id);
+    if (!escrow) {
+      sendJson(res, cfg, 404, {
+        ok: false,
+        error: "escrow not found"
+      });
+      return true;
+    }
     sendJson(res, cfg, 200, {
       ok: true,
-      escrow: {
-        id,
-        status: "open",
-        currentBalance: 0,
-        receipts: []
-      }
+      escrow
     });
     return true;
   }
 
   // POST /desk/approve/promote - APPROVE: release the next layer (signed Receipt)
-  if (pathname === "/desk/approve/promote" && url.method === "POST") {
-    log.info("desk", "layer promotion approval", `${url.method} ${pathname}`);
-    // TODO: Parse approval, verify signature, update approvals set
-    sendJson(res, cfg, 200, {
-      ok: true,
-      approved: true,
-      receipt: {
-        height: 1,
-        tag: "approval-tag-placeholder",
-        prevHash: 0,
-        depositAmt: 0,
-        releaseAmt: 0
-      }
+  if (pathname === "/desk/approve/promote" && method === "POST") {
+    log.info("desk", "layer promotion approval", `${method} ${pathname}`);
+    sendJson(res, cfg, 501, {
+      ok: false,
+      approved: false,
+      error: "promotion approval signature verification not yet implemented"
     });
     return true;
   }
 
   // GET /desk/kb?q= - witnessed KB query
-  if (pathname === "/desk/kb" && url.method === "GET") {
+  if (pathname === "/desk/kb" && method === "GET") {
     const query = url.searchParams.get("q") || "";
-    log.info("desk", "KB query", `${url.method} ${pathname} q="${query}"`);
-    // TODO: Query witnessed KB store, return matching records
+    log.info("desk", "KB query", `${method} ${pathname} len=${query.length}`);
+    if (deskState.kb.size === 0) {
+      sendJson(res, cfg, 501, {
+        ok: false,
+        error: "witnessed KB store not yet populated"
+      });
+      return true;
+    }
+    const results = [...deskState.kb.values()].filter((r) =>
+      !query || JSON.stringify(r).toLowerCase().includes(query.toLowerCase())
+    );
     sendJson(res, cfg, 200, {
       ok: true,
-      results: [],
+      results,
       query,
       timestamp: Date.now()
     });
@@ -358,15 +496,38 @@ function handleDeskEndpoints(cfg, res, url, started, log) {
 
 // ------------------------------------------------------------- the server
 
+function safeDecodeURIComponent(raw) {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
+}
+
+function safeParseUrl(req) {
+  try {
+    return new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+  } catch {
+    return null;
+  }
+}
+
 export function createServer(cfg = CONFIG, rooms = new Rooms(cfg), log = makeLogger(cfg)) {
   const server = http.createServer(async (req, res) => {
     const started = Date.now();
-    const url = new URL(req.url, `http://${req.headers.host ?? "localhost"}`);
+    const url = safeParseUrl(req);
+    if (!url) {
+      sendJson(res, cfg, 400, { ok: false, error: "bad request url" });
+      return;
+    }
     const shown = url.pathname.replace(/^\/(room|ws)\/([^/]+)/,
-      (_, kind, room) => `/${kind}/${roomRef(decodeURIComponent(room))}`);
+      (_, kind, room) => {
+        const decoded = safeDecodeURIComponent(room);
+        return `/${kind}/${roomRef(decoded ?? room)}`;
+      });
     
     // Check if this is a desk endpoint first
-    if (handleDeskEndpoints(cfg, res, url, started, log)) {
+    if (handleDeskEndpoints(cfg, req, res, url, started, log)) {
       return;
     }
     
@@ -386,23 +547,35 @@ export function createServer(cfg = CONFIG, rooms = new Rooms(cfg), log = makeLog
 
     const m = url.pathname.match(/^\/room\/([^/]+)$/);
     if (m) {
-      const room = decodeURIComponent(m[1]);
+      const room = safeDecodeURIComponent(m[1]);
+      if (room === null) {
+        sendJson(res, cfg, 400, { ok: false, error: "malformed room URI encoding" });
+        return;
+      }
       log.info("relay", `route room ${roomRef(room)}`, `${req.method} ${shown}`);
       if (req.method === "POST") {
         let body;
         try { body = await readBody(req, cfg.maxBody); }
         catch (e) {
           log.warn("relay", "a body was refused", `${roomRef(room)}: ${e.message}`);
-          sendJson(res, cfg, 413, { ok: false, error: "body too large" });
+          res.writeHead(413, { "content-type": "application/json", connection: "close", ...cors(cfg) });
+          res.end(JSON.stringify({ ok: false, error: "body too large" }));
           return;
         }
         const lines = body.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
-        if (lines.some((l) => l.length > cfg.maxLine)) {
+        if (lines.some((l) => Buffer.byteLength(l, "utf8") > cfg.maxLine)) {
           log.warn("relay", "a line was too long", roomRef(room));
           sendJson(res, cfg, 413, { ok: false, error: "line too long" });
           return;
         }
-        const cursor = rooms.post(room, lines);
+        let cursor;
+        try {
+          cursor = rooms.post(room, lines);
+        } catch (e) {
+          log.warn("relay", "room capacity reached", `${roomRef(room)}: ${e.message}`);
+          sendJson(res, cfg, 503, { ok: false, error: "room capacity reached" });
+          return;
+        }
         log.info("relay", `posted ${lines.length} lines`, `${roomRef(room)} cursor=${cursor}`);
         sendJson(res, cfg, 200, { ok: true, cursor, accepted: lines.length });
         return;
@@ -412,9 +585,16 @@ export function createServer(cfg = CONFIG, rooms = new Rooms(cfg), log = makeLog
         const wait = Math.min(Number(url.searchParams.get("wait") ?? 0) || 0, 60);
         log.info("relay", `fetch room`, `${roomRef(room)} cursor=${cursor} wait=${wait}s`);
         let out = rooms.fetch(room, cursor);
-        if (wait > 0 && out.lines.length === 0) {
+        if (wait > 0 && out.lines.length === 0 && !out.truncated) {
           log.info("relay", `waiting for room`, `${roomRef(room)} cursor=${cursor} wait=${wait}s`);
-          await rooms.wait(room, wait * 1000);
+          try {
+            await rooms.wait(room, wait * 1000, res);
+          } catch (e) {
+            log.warn("relay", "room capacity reached on wait", `${roomRef(room)}: ${e.message}`);
+            sendJson(res, cfg, 503, { ok: false, error: "room capacity reached" });
+            return;
+          }
+          if (res.destroyed || res.writableEnded) return;
           out = rooms.fetch(room, cursor);
         }
         log.info("relay", `fetched room`, `${roomRef(room)} cursor=${cursor} -> ${out.cursor} lines=${out.lines.length} truncated=${out.truncated}`);
@@ -476,11 +656,12 @@ function wsFrame(text) {
 }
 
 /** Pull whole frames out of a buffer; returns how many bytes were used. */
-function wsFrames(buf) {
+function wsFrames(buf, maxPayload = 1024 * 1024) {
   const out = [];
   let off = 0;
   while (off + 2 <= buf.length) {
     const b0 = buf[off], b1 = buf[off + 1];
+    const fin = (b0 & 0x80) !== 0;
     const opcode = b0 & 0x0f;
     const masked = (b1 & 0x80) !== 0;
     let len = b1 & 0x7f;
@@ -488,29 +669,46 @@ function wsFrames(buf) {
     if (len === 126) { if (p + 2 > buf.length) break; len = buf.readUInt16BE(p); p += 2; }
     else if (len === 127) {
       if (p + 8 > buf.length) break;
-      len = Number(buf.readBigUInt64BE(p)); p += 8;
+      const bigLen = buf.readBigUInt64BE(p);
+      if (bigLen > BigInt(maxPayload)) return { frames: out, used: off, oversized: true };
+      len = Number(bigLen); p += 8;
     }
+    if (len > maxPayload) return { frames: out, used: off, oversized: true };
     let mask = null;
     if (masked) { if (p + 4 > buf.length) break; mask = buf.subarray(p, p + 4); p += 4; }
     if (p + len > buf.length) break;
     const data = Buffer.from(buf.subarray(p, p + len));
     if (mask) for (let i = 0; i < data.length; i++) data[i] ^= mask[i % 4];
     off = p + len;
-    out.push({ opcode, data });
+    out.push({ fin, opcode, data });
   }
-  return { frames: out, used: off };
+  return { frames: out, used: off, oversized: false };
 }
 
 function handleUpgrade(cfg, rooms, req, socket, log = { info() {}, warn() {}, error() {} }) {
-  const url = new URL(req.url, `http://${req.headers.host ?? "localhost"}`);
-  const m = url.pathname.match(/^\/ws\/([^/]+)$/);
+  const url = safeParseUrl(req);
+  const m = url ? url.pathname.match(/^\/ws\/([^/]+)$/) : null;
   const key = req.headers["sec-websocket-key"];
   if (!m || !key) {
     log.warn("relay", "websocket upgrade rejected", "missing room or key");
     socket.destroy();
     return;
   }
-  const room = decodeURIComponent(m[1]);
+  const room = safeDecodeURIComponent(m[1]);
+  if (room === null) {
+    log.warn("relay", "websocket upgrade rejected", "malformed room URI encoding");
+    socket.destroy();
+    return;
+  }
+  let r;
+  try {
+    r = rooms.room(room);
+  } catch (e) {
+    log.warn("relay", "websocket upgrade rejected", `${roomRef(room)}: ${e.message}`);
+    socket.write("HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n");
+    socket.destroy();
+    return;
+  }
   log.info("relay", "websocket upgrade", `${roomRef(room)} cursor=${url.searchParams.get("cursor") ?? 0}`);
 
   socket.write(
@@ -522,33 +720,96 @@ function handleUpgrade(cfg, rooms, req, socket, log = { info() {}, warn() {}, er
   const state = {
     cursor: Number(url.searchParams.get("cursor") ?? 0) || 0,
     push(out) {
-      if (out.lines.length === 0) { state.cursor = out.cursor; return; }
+      if (out.lines.length === 0 && !out.truncated) { state.cursor = out.cursor; return; }
+      const frame = wsFrame(JSON.stringify({ ok: true, ...out }));
+      if (socket.writableLength > cfg.maxBody * 4) {
+        log.warn("socket", "websocket outbound buffer exceeded limit", roomRef(room));
+        socket.destroy();
+        return;
+      }
       state.cursor = out.cursor;
-      socket.write(wsFrame(JSON.stringify({ ok: true, ...out })));
+      socket.write(frame);
     },
   };
 
-  const r = rooms.room(room);
   r.sockets.add(state);
   state.push(rooms.fetch(room, state.cursor));
 
+  const handleTextMessage = (payload) => {
+    const lines = payload.toString("utf8").split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
+    if (lines.some((l) => Buffer.byteLength(l, "utf8") > cfg.maxLine)) {
+      log.warn("socket", "a line was too long", roomRef(room));
+      socket.write(wsFrame(JSON.stringify({ ok: false, error: "line too long" })));
+      return;
+    }
+    if (lines.length) rooms.post(room, lines);
+  };
+
   let pending = Buffer.alloc(0);
+  let fragChunks = [];
+  let fragBytes = 0;
+  let fragCount = 0;
+  let inTextFrag = false;
+
   socket.on("data", (chunk) => {
+    if (pending.length + chunk.length > cfg.maxBody) {
+      log.warn("socket", "websocket buffer exceeded maxBody", roomRef(room));
+      socket.destroy();
+      return;
+    }
     pending = Buffer.concat([pending, chunk]);
-    const { frames, used } = wsFrames(pending);
+    const { frames, used, oversized } = wsFrames(pending, cfg.maxBody);
+    if (oversized) {
+      log.warn("socket", "websocket frame exceeded maxBody", roomRef(room));
+      socket.destroy();
+      return;
+    }
     pending = pending.subarray(used);
-    for (const { opcode, data } of frames) {
+    for (const { fin, opcode, data } of frames) {
       if (opcode === 0x8) { socket.end(); return; }
-      if (opcode === 0x9) socket.write(Buffer.concat([Buffer.from([0x8a, data.length]), data]));
+      if (opcode === 0x9 && data.length <= 125) {
+        socket.write(Buffer.concat([Buffer.from([0x8a, data.length]), data]));
+        continue;
+      }
       if (opcode === 0x1) {
-        const lines = data.toString("utf8").split("\n")
-          .map((l) => l.trim()).filter((l) => l.length > 0 && l.length <= cfg.maxLine);
-        if (lines.length) rooms.post(room, lines);
+        if (inTextFrag) {
+          socket.destroy();
+          return;
+        }
+        if (fin) {
+          handleTextMessage(data);
+        } else {
+          inTextFrag = true;
+          fragChunks = data.length > 0 ? [data] : [];
+          fragBytes = data.length;
+          fragCount = 1;
+        }
+      } else if (opcode === 0x0) {
+        if (!inTextFrag || fragCount >= 64 || fragBytes + data.length > cfg.maxBody) {
+          socket.destroy();
+          return;
+        }
+        if (data.length > 0) fragChunks.push(data);
+        fragBytes += data.length;
+        fragCount += 1;
+        if (fin) {
+          const full = Buffer.concat(fragChunks);
+          fragChunks = [];
+          fragBytes = 0;
+          fragCount = 0;
+          inTextFrag = false;
+          handleTextMessage(full);
+        }
       }
     }
   });
 
-  const drop = () => { r.sockets.delete(state); };
+  const drop = () => {
+    r.sockets.delete(state);
+    if (r.lines.length === 0 && r.base === 0 && r.sockets.size === 0 && r.waiters.size === 0) {
+      rooms.deleteRoom(String(room));
+    }
+  };
   socket.on("close", () => { log.info("socket", `a stream closed`, roomRef(room)); drop(); });
   socket.on("error", (e) => { log.error("socket", "a stream failed", e.message); drop(); });
   log.info("socket", `a stream opened`, roomRef(room));

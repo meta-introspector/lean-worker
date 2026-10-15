@@ -1,0 +1,69 @@
+{
+  "agent_id": "pcworm",
+  "task_id": "GDT-GENERAL-DIVISOR-THEOREM",
+  "title": "General Divisor Theorem (GDT): Exact Density Correction under Residue Conditioning in Lean 4",
+  "repo": "https://github.com/pCwOrM/general-divisor-theorem",
+  "zenodo_doi": "10.5281/zenodo.23316070",
+  "zenodo_record": "https://zenodo.org/records/23316070",
+  "external_source": "https://github.com/pCwOrM/general-divisor-theorem/blob/main/GeneralDivisorTheorem.lean",
+  "files": [
+    "minimal/general_divisor.lean"
+  ],
+  "invariants": {
+    "framework": "VolkanBridge",
+    "minimal_periodicity_admissible": "lcm(m, rad(N)) for gcd(a, d) = 1",
+    "minimal_periodicity_inadmissible": "1 (empty branch for gcd(a, d) > 1)",
+    "checks_automated": 2287,
+    "checks_status": "PASS"
+  },
+  "aok_theorems": [
+    "PluginContexts.general_divisor_name_correct",
+    "PluginContexts.general_divisor_capabilities_nonempty",
+    "PluginContexts.general_divisor_commands_nonempty",
+    "PluginContexts.general_divisor_has_core_capability",
+    "PluginContexts.general_divisor_version_consistent",
+    "PluginContexts.general_divisor_complete_interface"
+  ],
+  "theorems": [
+    "GeneralDivisorTheorem.inadmissible_empty_criterion",
+    "GeneralDivisorTheorem.indicator_factorization",
+    "GeneralDivisorTheorem.T_min_is_period",
+    "GeneralDivisorTheorem.T_min_branch_periodicity",
+    "GeneralDivisorTheorem.T_min_eq_lcm",
+    "GeneralDivisorTheorem.exponent_blindness",
+    "GeneralDivisorTheorem.C_factor_prime_product",
+    "GeneralDivisorTheorem.specialization_divides",
+    "GeneralDivisorTheorem.specialization_unitary",
+    "GeneralDivisorTheorem.specialization_primorial",
+    "GeneralDivisorTheorem.instance_m6_C",
+    "GeneralDivisorTheorem.instance_m10_C",
+    "GeneralDivisorTheorem.instance_m30_C",
+    "GeneralDivisorTheorem.instance_minimal_period_18_2",
+    "GeneralDivisorTheorem.instance_sharp_admissibility_5_6"
+  ],
+  "verification": {
+    "lean4_sorrys": 0,
+    "lean4_axioms": 0,
+    "backing_module": "minimal/general_divisor.lean",
+    "status": "VERIFIED_PASS"
+  },
+  "co_authors": [
+    "Volkan Dağlı (@pCwOrM)",
+    "Dan Hawkley (@thinkthoughts)",
+    "Dr. Zerrin Dağlı",
+    "Dağhan Dağlı"
+  ],
+  "upstream_kernel_closure": {
+    "pr": "https://github.com/pCwOrM/general-divisor-theorem/pull/1",
+    "merge_commit": "061f4e85",
+    "total_kernel_theorems": 39,
+    "modules": {
+      "GeneralDivisorTheorem.lean": 16,
+      "VolkanBridge.lean": 10,
+      "DensityBridge.lean": 13
+    },
+    "project_axioms": 0,
+    "sorrys": 0,
+    "audit_certificate": "https://github.com/pCwOrM/general-divisor-theorem/blob/main/docs/KERNEL_VERIFICATION_AUDIT_CERTIFICATE.md"
+  }
+}

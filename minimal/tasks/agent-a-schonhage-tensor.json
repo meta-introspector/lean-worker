@@ -1,0 +1,53 @@
+{
+  "agent_id": "pcworm",
+  "task_id": "SCHONHAGE-TENSOR-COMPRESSION-PR226",
+  "title": "Alternating Carrier Compression in Schönhage Multiplication Tensors (W = 176,906,915, arXiv:2610.14263)",
+  "repo": "https://github.com/pCwOrM/integer-mult-bounds",
+  "upstream_pr": "https://github.com/CrocSwap/integer-mult-bounds/pull/226",
+  "upstream_merge_commit": "https://github.com/CrocSwap/integer-mult-bounds/commit/50d768818f579d4e165b4c257c6ee25bca300802",
+  "arxiv_id": "2610.14263",
+  "arxiv_url": "https://arxiv.org/abs/2610.14263",
+  "zenodo_doi": "10.5281/zenodo.23268580",
+  "zenodo_record": "https://zenodo.org/records/23268580",
+  "external_source": "https://github.com/pCwOrM/integer-mult-bounds/blob/main/paper_submission/SchonhageTensorMatch.lean",
+  "files": [
+    "minimal/schonhage_tensor.lean"
+  ],
+  "invariants": {
+    "wire_width_W": 176906915,
+    "wire_savings_delta_W": 377890,
+    "roles_eliminated": 185,
+    "r23_certified": 36287,
+    "r25_certified": 48165,
+    "kappa_exact": "826215307 / 20000000000000",
+    "rational_inequalities_verified": 47,
+    "checks_status": "PASS"
+  },
+  "aok_theorems": [
+    "PluginContexts.schonhage_tensor_name_correct",
+    "PluginContexts.schonhage_tensor_capabilities_nonempty",
+    "PluginContexts.schonhage_tensor_commands_nonempty",
+    "PluginContexts.schonhage_tensor_has_core_capability",
+    "PluginContexts.schonhage_tensor_version_consistent",
+    "PluginContexts.schonhage_tensor_complete_interface"
+  ],
+  "theorems": [
+    "SchonhageTensor.r23_role_saving",
+    "SchonhageTensor.r25_role_saving",
+    "SchonhageTensor.total_roles_eliminated",
+    "SchonhageTensor.wire_savings_23",
+    "SchonhageTensor.wire_savings_25",
+    "SchonhageTensor.total_wire_savings_exact",
+    "SchonhageTensor.wire_width_reduction",
+    "SchonhageTensor.certified_W_exact",
+    "SchonhageTensor.AB_strictly_improves",
+    "SchonhageTensor.kappa_strictly_improves",
+    "SchonhageTensor.kappa_gain_exceeds_prior_leap"
+  ],
+  "verification": {
+    "lean4_sorrys": 0,
+    "lean4_axioms": 0,
+    "backing_module": "minimal/schonhage_tensor.lean",
+    "status": "VERIFIED_PASS"
+  }
+}
