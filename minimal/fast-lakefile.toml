@@ -11,11 +11,11 @@ roots = ["Agent", "APICapabilities", "CommandExecution", "CreditUsage", "Executi
 
 [[lean_lib]]
 name = "RequestProject.Proxy"
-roots = ["Concrete", "Core", "Dashboard", "Example", "Export", "Interop", "Monitor"]
+roots = ["Proxy.Concrete", "Proxy.Core", "Proxy.Dashboard", "Proxy.Example", "Proxy.Export", "Proxy.Interop", "Proxy.Monitor"]
 
 [[lean_lib]]
 name = "RequestProject.Protocol"
-roots = ["Client", "Core", "Example", "Server", "Soundness"]
+roots = ["Protocol.Client", "Protocol.Core", "Protocol.Example", "Protocol.Server", "Protocol.Soundness"]
 
 [[lean_lib]]
 name = "RequestProject.PluginContexts"
@@ -69,7 +69,4 @@ cache = { enabled = true, directory = ".lake/cache" }
 # No [[require]] = no mathlib
 
 # Fast build settings (subset of optimizations)
-options = {
-  transparency = true
-  logging = false
-}
+options = { transparency = true, logging = false }
