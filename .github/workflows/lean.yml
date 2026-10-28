@@ -25,8 +25,8 @@ jobs:
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
-            substituters = https://cache.nixos.org https://cache.numtide.com https://nix-community.cachix.org
-            trusted-public-keys = cache.nixos.org-1:aNJVHp2ql7migYbNxr0vczfzuVoCYuzzbJVGNCDtU6g= nix-community.cachix.org-1:IT9/7Hwk9xU/HRhDHbhlZW6Nw3NUBmEvfpL6wO3jVNo=
+            substituters = https://cache.nixos.org https://cache.numtide.com
+            trusted-public-keys = cache.nixos.org-1:6NCHdD59X431o0gWypbMrAURkbJ16ZPMQFGspcDShjY= niks3.numtide.com-1:DTx8wZduET09hRmMtKdQDxNNthLQETkc/yaX7M4qK0g=
 
       # Toolchain comes from ci/flake.nix: lean4-nix's readToolchainFile pins
       # exactly minimal/lean-toolchain (4.28.0), served from cache.numtide.com.
